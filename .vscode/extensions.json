@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "rust-lang.rust-analyzer",
+        "svelte.svelte-vscode",
+        "tauri-apps.tauri-vscode",
+        "vadimcn.vscode-lldb"
+    ]
+}

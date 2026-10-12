@@ -1,0 +1,179 @@
+name: E2E & Screenshots
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'src-tauri/**'
+      - 'profiles/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'svelte.config.js'
+      - 'tsconfig*.json'
+      - 'index.html'
+      - '.github/workflows/e2e.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'src-tauri/**'
+      - 'profiles/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'svelte.config.js'
+      - 'tsconfig*.json'
+      - 'index.html'
+      - '.github/workflows/e2e.yml'
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-browser:
+    name: E2E (browser mode, no display)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build frontend only (no Rust)
+        run: npm run build
+      - name: Run E2E in browser mode (mocked IPC, headless Chrome)
+        env:
+          E2E_MODE: browser
+        run: npm run e2e
+
+  e2e-native:
+    name: E2E (native Tauri, requires display)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # This job REQUIRES a display server (xvfb-run). It will be skipped
+    # on environments without GPU/display support unless explicitly enabled.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system dependencies (webkit2gtk, xvfb)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-4-dev libayatana-appindicator3-dev librsvg2-dev xvfb
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+      - name: Build Tauri app (release)
+        run: cargo build --release
+        working-directory: src-tauri
+      - run: npm ci
+      - name: Build frontend
+        run: npm run build
+      - name: Run E2E in native mode (xvfb-run)
+        env:
+          E2E_MODE: native
+          TAURI_DRIVER_PATH: ${{ env.HOME }}/.cargo/bin/tauri-driver
+        run: |
+          xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run e2e
+
+  screenshots:
+    name: Screenshot capture & regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # This job REQUIRES a display server (xvfb-run) for native Tauri captures.
+    # It runs after e2e-native to reuse the built binary.
+    needs: e2e-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system dependencies (webkit2gtk, xvfb)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-4-dev libayatana-appindicator3-dev librsvg2-dev xvfb
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+      - name: Build Tauri app (release)
+        run: cargo build --release
+        working-directory: src-tauri
+      - run: npm ci
+      - name: Build frontend
+        run: npm run build
+      - name: Capture screenshots (xvfb-run, 2× DPI)
+        env:
+          TAURI_DRIVER_PATH: ${{ env.HOME }}/.cargo/bin/tauri-driver
+        run: |
+          xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run screenshots
+      - name: Compare screenshots (regression check)
+        run: npm run screenshots:compare
+      - name: Upload screenshots as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-current
+          path: tests/screenshots/current/*.png
+          retention-days: 7
+      - name: Upload diff images on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-diff
+          path: tests/screenshots/diff/*.png
+          retention-days: 7
+
+  screenshots-update:
+    name: Update screenshot baselines (manual)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Manual workflow dispatch to refresh baselines when UI intentionally changes.
+    # Requires display (xvfb-run).
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system dependencies (webkit2gtk, xvfb)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-4-dev libayatana-appindicator3-dev librsvg2-dev xvfb
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+      - name: Build Tauri app (release)
+        run: cargo build --release
+        working-directory: src-tauri
+      - run: npm ci
+      - name: Build frontend
+        run: npm run build
+      - name: Capture screenshots (xvfb-run, 2× DPI)
+        env:
+          TAURI_DRIVER_PATH: ${{ env.HOME }}/.cargo/bin/tauri-driver
+        run: |
+          xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run screenshots
+      - name: Update baselines
+        run: npm run screenshots:compare --update
+      - name: Upload updated baselines
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-baseline
+          path: tests/screenshots/baseline/*.png
+          retention-days: 30

@@ -1,0 +1,96 @@
+name: Update sidecar pin
+
+# Checks pixop/video-compare for a newer release, updates sidecar-version.json
+# (version + pinned SHA-256 of the Windows asset), and opens a PR.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '43 6 * * 1'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check upstream release
+        id: pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > update-sidecar-pin.mjs <<'EOF'
+          import fs from "node:fs";
+
+          const pinPath = "sidecar-version.json";
+          const pin = JSON.parse(fs.readFileSync(pinPath, "utf8"));
+          const meta = pin["video-compare"];
+          if (!meta) throw new Error('sidecar-version.json: missing "video-compare" entry');
+
+          const headers = {
+            accept: "application/vnd.github+json",
+            "x-github-api-version": "2022-11-28",
+          };
+          if (process.env.GH_TOKEN) {
+            headers.authorization = `Bearer ${process.env.GH_TOKEN}`;
+          }
+          const res = await fetch(`https://api.github.com/repos/${meta.repo}/releases/latest`, { headers });
+          if (!res.ok) {
+            throw new Error(`GitHub API ${res.status} while querying ${meta.repo}: ${await res.text()}`);
+          }
+          const release = await res.json();
+
+          let changed = false;
+          if (release.tag_name && release.tag_name !== meta.version) {
+            console.log(`version: ${meta.version} -> ${release.tag_name}`);
+            meta.version = release.tag_name;
+            changed = true;
+          }
+
+          // Refresh the pinned SHA-256 of the Windows release asset.
+          const asset = (release.assets ?? []).find((a) => a.name.endsWith("-win10-x86_64.zip"));
+          if (asset && typeof asset.digest === "string" && asset.digest.startsWith("sha256:")) {
+            const sha = asset.digest.slice("sha256:".length);
+            const pinned = (meta.sha256 ?? {})[asset.name];
+            if (pinned !== sha) {
+              console.log(`sha256 for ${asset.name}: ${pinned ?? "(none)"} -> ${sha}`);
+              meta.sha256 = { [asset.name]: sha };
+              changed = true;
+            }
+          } else {
+            console.log("no Windows asset digest available; leaving sha256 untouched");
+          }
+
+          if (changed) {
+            fs.writeFileSync(pinPath, JSON.stringify(pin, null, 2) + "\n");
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\nversion=${meta.version}\n`);
+          console.log(`pinned ${meta.repo} @ ${meta.version} (changed=${changed})`);
+          EOF
+          node update-sidecar-pin.mjs
+          rm -f update-sidecar-pin.mjs
+
+      - name: Open pull request
+        if: steps.pin.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: sidecar-version.json
+          branch: bot/update-video-compare
+          delete-branch: true
+          commit-message: "chore(sidecar): bump video-compare to ${{ steps.pin.outputs.version }}"
+          title: "chore(sidecar): bump video-compare to ${{ steps.pin.outputs.version }}"
+          body: |
+            Automated bump of the pinned video-compare sidecar.
+
+            - New pin: `${{ steps.pin.outputs.version }}`
+            - Release: https://github.com/pixop/video-compare/releases/tag/${{ steps.pin.outputs.version }}
+
+            Only `sidecar-version.json` is updated. TODO (plan §15): also
+            regenerate the option profile (`tools/generate-profile.ts`) and
+            diff it against the new upstream `--help` output in this PR.

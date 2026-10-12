@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "enables the default permissions plus dialog, fs, opener, shell for the app",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "fs:default",
+    "opener:default",
+    "shell:default",
+    "process:default",
+    "updater:default"
+  ]
+}

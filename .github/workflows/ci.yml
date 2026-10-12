@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'src-tauri/**'
+      - 'profiles/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'tools/**'
+      - 'sidecar-version.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'svelte.config.js'
+      - 'tsconfig*.json'
+      - 'index.html'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'src-tauri/**'
+      - 'profiles/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'tools/**'
+      - 'sidecar-version.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'svelte.config.js'
+      - 'tsconfig*.json'
+      - 'index.html'
+      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint workflows (actionlint)
+        run: |
+          curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz -o actionlint.tgz
+          echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  actionlint.tgz" | sha256sum -c -
+          tar -xzf actionlint.tgz actionlint
+          ./actionlint -color
+      - name: Lint (ESLint)
+        run: npx eslint src
+      - name: Validate profile JSON
+        run: |
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const dirs = ["profiles", "public/profiles", "src-tauri/profiles"];
+            const files = [];
+            for (const dir of dirs) {
+              if (!fs.existsSync(dir)) continue;
+              for (const f of fs.readdirSync(dir)) {
+                if (f.endsWith(".json")) files.push(path.join(dir, f));
+              }
+            }
+            files.push("sidecar-version.json");
+            const profileFiles = files.filter((f) => f !== "sidecar-version.json");
+            if (profileFiles.length === 0) {
+              console.error("No profile JSON files found under: " + dirs.join(", "));
+              process.exit(1);
+            }
+            for (const f of files) {
+              JSON.parse(fs.readFileSync(f, "utf8"));
+              console.log("OK " + f);
+            }
+            const index = JSON.parse(fs.readFileSync(path.join("profiles", "profiles-index.json"), "utf8"));
+            if (!Array.isArray(index.profiles)) {
+              console.error("profiles/profiles-index.json: expected a \"profiles\" array");
+              process.exit(1);
+            }
+          '
+      - run: npx svelte-check --tsconfig ./tsconfig.app.json
+      - run: npx vitest run
+      - run: npm run build
+
+  rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Compile-only placeholder so tauri-build resolves bundle.externalBin
+      # and bundle.resources without downloading the real sidecar.
+      - name: Create sidecar stub (compile-only)
+        run: bash scripts/fetch-sidecars.sh --stub
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+        working-directory: src-tauri
+      - run: cargo clippy -- -D warnings
+        working-directory: src-tauri
+      - run: cargo test
+        working-directory: src-tauri
+
+  build-matrix:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Create sidecar stub (compile-only, Windows)
+        if: runner.os == 'Windows'
+        run: ./scripts/fetch-sidecars.ps1 -Stub
+      - name: Create sidecar stub (compile-only, Linux/macOS)
+        if: runner.os != 'Windows'
+        run: bash scripts/fetch-sidecars.sh --stub
+      - run: npm ci
+      - run: npm run build
+      - run: cargo check
+        working-directory: src-tauri

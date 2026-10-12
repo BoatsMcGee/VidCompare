@@ -1,0 +1,181 @@
+name: Release
+
+# Note: GitHub does not support path filters for tag pushes, so all `v*` tags
+# build; workflow_dispatch allows dry-run builds without a tag (publishing is
+# skipped unless the ref is a tag).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform: windows
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            platform: linux
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            platform: macos
+            # TODO(M9): x86_64-apple-darwin / universal macOS builds need an
+            # Intel runner or a cross-compiled sidecar: upstream publishes no
+            # macOS prebuilts and the sidecar is built from source here.
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache sidecar
+        id: sidecar-cache
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/binaries
+          key: sidecar-${{ matrix.platform }}-${{ hashFiles('sidecar-version.json') }}
+
+      # Tauri app build dependencies (Linux).
+      - name: Install Tauri build dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev
+
+      # Sidecar source-build dependencies (Linux/macOS) — upstream only
+      # publishes a Windows prebuilt asset (see plan §10, hybrid sourcing).
+      - name: Install sidecar build dependencies (Linux)
+        if: matrix.platform == 'linux' && steps.sidecar-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config g++ make \
+            libavformat-dev libavcodec-dev libavfilter-dev libavutil-dev \
+            libswscale-dev libswresample-dev libsdl2-dev libsdl2-ttf-dev
+      - name: Install sidecar build dependencies (macOS)
+        if: matrix.platform == 'macos' && steps.sidecar-cache.outputs.cache-hit != 'true'
+        run: brew install pkg-config ffmpeg sdl2 sdl2_ttf
+
+      # Fetch the pinned sidecar (Windows downloads the verified release zip;
+      # Linux/macOS build the pinned tag from source when no asset exists).
+      - name: Fetch sidecar (Windows)
+        if: matrix.platform == 'windows'
+        run: ./scripts/fetch-sidecars.ps1
+      - name: Fetch sidecar (Linux/macOS)
+        if: matrix.platform != 'windows'
+        run: bash scripts/fetch-sidecars.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - run: npm ci
+      - run: npm run build
+      # Updater manifest signing (minisign keypair): the private key lives in
+      # the TAURI_SIGNING_PRIVATE_KEY secret; tauri build emits *.sig files
+      # next to the bundles when it is set. Release artifacts themselves stay
+      # unsigned (no code signing — project convention); this is manifest
+      # signing only. Portable zips are excluded from auto-update by design.
+      - name: Build app
+        run: npx tauri build --target ${{ matrix.target }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      # Tauri does not produce a plain Windows zip, so assemble the portable
+      # artifact here: app exe + sidecar (+ DLLs) + README + LICENSE + marker.
+      - name: Create portable zip (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $ver = [string]$conf.version
+          $target = '${{ matrix.target }}'
+          $releaseDir = "src-tauri/target/$target/release"
+          $stageName = "VidCompare-$ver-portable-win64"
+          $stage = Join-Path 'dist' $stageName
+          if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          $main = @(
+            (Join-Path $releaseDir 'VidCompare.exe'),
+            (Join-Path $releaseDir 'vidcompare.exe')
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $main) { throw "main executable not found in $releaseDir" }
+          Copy-Item $main $stage
+          Copy-Item "src-tauri/binaries/video-compare-$target.exe" (Join-Path $stage 'video-compare.exe')
+          $dllDir = 'src-tauri/binaries/dlls'
+          if (Test-Path $dllDir) {
+            Get-ChildItem $dllDir -Filter '*.dll' | Copy-Item -Destination $stage
+          }
+          Copy-Item README.md $stage
+          # License placeholder — the repository has no root LICENSE yet
+          # (project license: GPL-3.0-only; upstream video-compare: GPL-3.0).
+          if (Test-Path LICENSE) {
+            Copy-Item LICENSE $stage
+          } else {
+            Set-Content -Path (Join-Path $stage 'LICENSE.txt') -Value @(
+              'VidCompare is licensed under GPL-3.0-only (https://www.gnu.org/licenses/gpl-3.0.html).',
+              'This bundle contains the video-compare binary by pixop (GPL-3.0),',
+              'https://github.com/pixop/video-compare - see its LICENSE.md and licenses/ directory.',
+              'TODO: replace this placeholder with the repository LICENSE file once added.'
+            )
+          }
+          # Portable marker: settings/profiles/logs are redirected next to the
+          # exe when this file exists (is_portable() in the Rust backend).
+          New-Item -Path (Join-Path $stage 'portable.flag') -ItemType File | Out-Null
+          $zip = Join-Path 'dist' "$stageName.zip"
+          if (Test-Path $zip) { Remove-Item -Force $zip }
+          Compress-Archive -Path $stage -DestinationPath $zip
+          Write-Host "created $zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vidcompare-${{ matrix.target }}
+          retention-days: 30
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*
+            dist/*.zip
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      # Attaches installers, the Windows portable zip, the updater .sig files,
+      # and the standalone option profiles + index (all profiles are
+      # OS-independent).
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ github.token }}
+          generate_release_notes: true
+          files: |
+            artifacts/**/*
+            public/profiles/*.json
+            profiles/profiles-index.json
+
+      # Rebuild the Pages site so download links and the changelog pick up the
+      # new release (deferred from M6).
+      - name: Dispatch website rebuild
+        uses: benc-uk/workflow-dispatch@v1.2.4
+        with:
+          workflow: website.yml
+          token: ${{ github.token }}

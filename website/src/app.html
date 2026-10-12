@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="VidCompare is a fast, lightweight, cross-platform GUI launcher for pixop/video-compare. Compare reference and distorted videos side by side with every video-compare option at your fingertips."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="VidCompare" />
+    <meta property="og:title" content="VidCompare — side-by-side video comparison, simplified" />
+    <meta
+      property="og:description"
+      content="A fast, lightweight, cross-platform GUI launcher for pixop/video-compare. Every option, side-aware, with in-app logs and light/dark themes."
+    />
+    <meta property="og:image" content="%sveltekit.assets%/screenshots/main-window-light.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="VidCompare — side-by-side video comparison, simplified" />
+    <meta
+      name="twitter:description"
+      content="A fast, lightweight, cross-platform GUI launcher for pixop/video-compare."
+    />
+    <script>
+      // Apply the persisted (or system) theme before first paint to avoid a flash.
+      try {
+        var t = localStorage.getItem('vc-theme');
+        document.documentElement.setAttribute(
+          'data-theme',
+          t === 'light' || t === 'dark'
+            ? t
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+        );
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    </script>
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

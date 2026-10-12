@@ -1,0 +1,51 @@
+name: Audit
+
+# Scheduled dependency audit (plan §15): npm + cargo advisories.
+# All findings are report-only for now; flip the steps to hard gates before
+# the 1.0 release (plan §12.4 quality gates / M9).
+on:
+  schedule:
+    - cron: '27 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: npm audit (app)
+        continue-on-error: true
+        run: npm audit --audit-level=high
+      - name: npm audit (website)
+        if: hashFiles('website/package-lock.json') != ''
+        working-directory: website
+        continue-on-error: true
+        run: |
+          npm ci
+          npm audit --audit-level=high
+
+  cargo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Ensure Cargo.lock exists
+        run: test -f src-tauri/Cargo.lock || cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+      - name: cargo audit (RustSec)
+        uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: src-tauri
+
+  # TODO(M9): third-party license inventory + GPL-3.0 compatibility gate
+  # (bundled video-compare is GPL-3.0; every artifact ships license texts).
+  # TODO(M9): dependency freshness report (plan §15).

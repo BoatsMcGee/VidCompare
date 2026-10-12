@@ -1,0 +1,61 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "VidCompare: Debug Rust",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--manifest-path=${workspaceFolder}/src-tauri/Cargo.toml"
+                ]
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}/src-tauri",
+            "env": {
+                "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS": "--remote-debugging-port=9222"
+            },
+            "sourceLanguages": [
+                "rust"
+            ],
+            "preLaunchTask": "ui: dev server"
+        },
+        {
+            "name": "VidCompare: Debug Rust (Windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/src-tauri/target/debug/vidcompare.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/src-tauri",
+            "environment": [
+                {
+                    "name": "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+                    "value": "--remote-debugging-port=9222"
+                }
+            ],
+            "console": "integratedTerminal",
+            "preLaunchTask": "cargo build (debug)"
+        },
+        {
+            "name": "VidCompare: Attach to WebView",
+            "type": "msedge",
+            "request": "attach",
+            "port": 9222,
+            "url": "http://localhost:1420",
+            "webRoot": "${workspaceFolder}/src",
+            "sourceMaps": true,
+            "useWebView": true
+        }
+    ],
+    "compounds": [
+        {
+            "name": "VidCompare: Full Stack Debug",
+            "configurations": [
+                "VidCompare: Debug Rust",
+                "VidCompare: Attach to WebView"
+            ],
+            "stopAll": true
+        }
+    ]
+}

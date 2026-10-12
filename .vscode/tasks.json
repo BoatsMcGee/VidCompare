@@ -1,0 +1,125 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "ui: dev server",
+            "type": "shell",
+            "command": "npm run dev",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "vite",
+                "pattern": {
+                    "regexp": "^$",
+                    "file": 1,
+                    "location": 2,
+                    "message": 3
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "VITE.*ready",
+                    "endsPattern": "Local:.*http://localhost:1420"
+                }
+            },
+            "detail": "Vite dev server for debug sessions (port 1420)"
+        },
+        {
+            "label": "npm: build",
+            "type": "npm",
+            "script": "build",
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "Build frontend (vite build + copy profiles)"
+        },
+        {
+            "label": "npm: dev",
+            "type": "npm",
+            "script": "dev",
+            "group": "build",
+            "problemMatcher": {
+                "owner": "vite",
+                "pattern": {
+                    "regexp": "^$",
+                    "file": 1,
+                    "location": 2,
+                    "message": 3
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "VITE.*ready",
+                    "endsPattern": "Local:.*http://localhost:1420"
+                }
+            },
+            "detail": "Start Vite dev server on http://localhost:1420",
+            "isBackground": true
+        },
+        {
+            "label": "cargo check",
+            "type": "shell",
+            "command": "cargo check --manifest-path ${workspaceFolder}/src-tauri/Cargo.toml",
+            "group": "build",
+            "problemMatcher": "$rustc",
+            "detail": "Check Rust code for errors"
+        },
+        {
+            "label": "cargo build (debug)",
+            "type": "shell",
+            "command": "cargo build --manifest-path ${workspaceFolder}/src-tauri/Cargo.toml",
+            "group": "build",
+            "problemMatcher": "$rustc",
+            "detail": "Build Rust debug binary"
+        },
+        {
+            "label": "cargo test",
+            "type": "shell",
+            "command": "cargo test --manifest-path ${workspaceFolder}/src-tauri/Cargo.toml",
+            "group": "test",
+            "problemMatcher": "$rustc",
+            "detail": "Run Rust tests"
+        },
+        {
+            "label": "npm: test",
+            "type": "npm",
+            "script": "test",
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run vitest unit tests"
+        },
+        {
+            "label": "npm: test:watch",
+            "type": "shell",
+            "command": "npm run test -- --watch",
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run vitest in watch mode",
+            "isBackground": true
+        },
+        {
+            "label": "tauri dev",
+            "type": "shell",
+            "command": "npx tauri dev",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": {
+                "owner": "tauri",
+                "pattern": {
+                    "regexp": "^$",
+                    "file": 1,
+                    "location": 2,
+                    "message": 3
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "Compiling|Running|VITE",
+                    "endsPattern": "Finished|Local:.*http://localhost:1420"
+                }
+            },
+            "detail": "Start Tauri dev (runs npm run dev + cargo build)",
+            "isBackground": true
+        }
+    ]
+}

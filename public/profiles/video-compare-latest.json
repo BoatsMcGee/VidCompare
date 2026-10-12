@@ -1,0 +1,577 @@
+{
+  "profileVersion": 1,
+  "minAppVersion": "0.1.0",
+  "maxAppVersion": null,
+  "upstream": {
+    "version": "20261004",
+    "sourceUrl": "https://github.com/pixop/video-compare/releases"
+  },
+  "meta": {
+    "generatedFrom": "main.cpp@65524a0",
+    "generatedAt": "2026-10-04T00:00:00Z"
+  },
+  "inputs": {
+    "multiRight": true,
+    "sameFilePlaceholder": "__",
+    "perVideoOverrideSyntax": "::",
+    "maxRightVideos": 10
+  },
+  "groups": [
+    { "id": "quick", "label": "Quick", "order": 0 },
+    { "id": "display", "label": "Display", "order": 1 },
+    { "id": "playback", "label": "Playback", "order": 2 },
+    { "id": "color", "label": "Color", "order": 3 },
+    { "id": "filters", "label": "Filters", "order": 4 },
+    { "id": "io", "label": "Inputs & Decoding", "order": 5 },
+    { "id": "scopes", "label": "Scopes", "order": 6 },
+    { "id": "advanced", "label": "Advanced", "order": 7 }
+  ],
+  "options": [
+    {
+      "id": "display-mode",
+      "flag": "--mode",
+      "short": "-m",
+      "label": "Display mode",
+      "help": "Layout: split screen, vertical stack, or horizontal stack.",
+      "group": "quick",
+      "order": 10,
+      "appliesTo": "global",
+      "type": { "kind": "enum", "values": [
+        { "value": "split", "label": "Split" },
+        { "value": "vstack", "label": "Vertical stack" },
+        { "value": "hstack", "label": "Horizontal stack" }
+      ], "default": "split" }
+    },
+    {
+      "id": "time-shift",
+      "flag": "--time-shift",
+      "short": "-t",
+      "label": "Time shift",
+      "help": "Shift the right video's timestamps (e.g. 0.150, -0.1, x1.04+0.1).",
+      "group": "quick",
+      "order": 20,
+      "appliesTo": "global",
+      "type": { "kind": "time-offset" }
+    },
+    {
+      "id": "auto-loop-mode",
+      "flag": "--auto-loop-mode",
+      "short": "-a",
+      "label": "Auto-loop mode",
+      "help": "Auto-loop playback when buffer fills: off, on (forward), or pp (ping-pong).",
+      "group": "quick",
+      "order": 30,
+      "appliesTo": "global",
+      "type": { "kind": "enum", "values": [
+        { "value": "off", "label": "Off" },
+        { "value": "on", "label": "On" },
+        { "value": "pp", "label": "Ping-pong" }
+      ], "default": "off" }
+    },
+    {
+      "id": "filters",
+      "flag": "--filters",
+      "short": "-i",
+      "label": "Filters (both)",
+      "help": "Comma-separated FFmpeg filters applied to both sides.",
+      "group": "quick",
+      "order": 40,
+      "appliesTo": "global",
+      "type": { "kind": "filter-chain" }
+    },
+    {
+      "id": "fullscreen",
+      "flag": "--fullscreen",
+      "short": "-u",
+      "label": "Fullscreen",
+      "help": "Start in fullscreen mode (desktop fullscreen without changing display mode).",
+      "group": "quick",
+      "order": 50,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "high-dpi",
+      "flag": "--high-dpi",
+      "short": "-d",
+      "label": "High DPI",
+      "help": "Allow high DPI mode for e.g. displaying UHD content on Retina displays.",
+      "group": "display",
+      "order": 10,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "font",
+      "flag": "--font",
+      "short": "-g",
+      "label": "UI font",
+      "help": "UI font: 'auto', 'scp', 'sarasa', or a path to a font file.",
+      "group": "display",
+      "order": 20,
+      "appliesTo": "global",
+      "type": { "kind": "string", "placeholder": "auto" }
+    },
+    {
+      "id": "ui-scale",
+      "flag": "--ui-scale",
+      "short": "-U",
+      "label": "UI scale",
+      "help": "UI scale multiplier for on-screen text (e.g. 1.25).",
+      "group": "display",
+      "order": 30,
+      "appliesTo": "global",
+      "type": { "kind": "number", "min": 0.5, "max": 4, "step": 0.25 }
+    },
+    {
+      "id": "display-number",
+      "flag": "--display-number",
+      "short": "-n",
+      "label": "Display number",
+      "help": "Open main window on specific display (e.g. 0, 1 or 2).",
+      "group": "display",
+      "order": 40,
+      "appliesTo": "global",
+      "type": { "kind": "number", "min": 0, "step": 1 }
+    },
+    {
+      "id": "window-size",
+      "flag": "--window-size",
+      "short": "-w",
+      "label": "Window size",
+      "help": "Override window size as WxH (e.g. 800x600, 1280x, x480).",
+      "group": "display",
+      "order": 50,
+      "appliesTo": "global",
+      "type": { "kind": "size" }
+    },
+    {
+      "id": "window-fit-display",
+      "flag": "--window-fit-display",
+      "short": "-W",
+      "label": "Fit window to display",
+      "help": "Calculate window size to fit within usable display bounds.",
+      "group": "display",
+      "order": 60,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "aspect-lock",
+      "flag": "--aspect-lock",
+      "short": "-k",
+      "label": "Aspect lock",
+      "help": "Aspect lock mode during resizing: off, window, or content.",
+      "group": "display",
+      "order": 70,
+      "appliesTo": "global",
+      "type": { "kind": "enum", "values": [
+        { "value": "off", "label": "Off" },
+        { "value": "window", "label": "Window" },
+        { "value": "content", "label": "Content" }
+      ], "default": "off" }
+    },
+    {
+      "id": "aspect-view-mode",
+      "flag": "--aspect-view-mode",
+      "short": "-x",
+      "label": "Aspect view mode",
+      "help": "Initial aspect view mode: stretch, original, dynamic, 16:9, 4:3, or 1:1.",
+      "group": "display",
+      "order": 80,
+      "appliesTo": "global",
+      "type": { "kind": "enum", "values": [
+        { "value": "stretch", "label": "Stretch" },
+        { "value": "original", "label": "Original" },
+        { "value": "dynamic", "label": "Dynamic" },
+        { "value": "16:9", "label": "16:9" },
+        { "value": "4:3", "label": "4:3" },
+        { "value": "1:1", "label": "1:1" }
+      ], "default": "stretch" }
+    },
+    {
+      "id": "bilinear-texture",
+      "flag": "--bilinear-texture",
+      "short": "-I",
+      "label": "Bilinear texture",
+      "help": "Toggle bilinear video texture interpolation.",
+      "group": "display",
+      "order": 90,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "fast-alignment",
+      "flag": "--fast-alignment",
+      "short": "-F",
+      "label": "Fast alignment",
+      "help": "Toggle fast bilinear scaling for aligning input source resolutions.",
+      "group": "display",
+      "order": 100,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "10-bpc",
+      "flag": "--10-bpc",
+      "short": "-b",
+      "label": "10-bit color",
+      "help": "Use 10 bits per color component instead of 8.",
+      "group": "display",
+      "order": 110,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "subtraction-mode",
+      "flag": "--subtraction-mode",
+      "short": "-S",
+      "label": "Subtraction mode",
+      "help": "Start in subtraction (difference) view.",
+      "group": "display",
+      "order": 120,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "frame-buffer-size",
+      "flag": "--frame-buffer-size",
+      "short": "-f",
+      "label": "Frame buffer size",
+      "help": "Frame buffer size (e.g. 10, 70 or 150), default is 50.",
+      "group": "playback",
+      "order": 10,
+      "appliesTo": "global",
+      "type": { "kind": "number", "min": 1, "step": 1 }
+    },
+    {
+      "id": "wheel-sensitivity",
+      "flag": "--wheel-sensitivity",
+      "short": "-s",
+      "label": "Wheel sensitivity",
+      "help": "Mouse wheel sensitivity (e.g. 0.5, -1 or 1.7), default is 1.",
+      "group": "playback",
+      "order": 20,
+      "appliesTo": "global",
+      "type": { "kind": "number", "step": 0.1 }
+    },
+    {
+      "id": "color-space",
+      "flag": "--color-space",
+      "short": "-C",
+      "label": "Color space",
+      "help": "Color space matrix, e.g. 'bt709' or 'bt2020nc:'.",
+      "group": "color",
+      "order": 10,
+      "appliesTo": "pair",
+      "pairStyle": "colon",
+      "flags": { "both": "--color-space" },
+      "type": { "kind": "string", "placeholder": "bt709" }
+    },
+    {
+      "id": "color-range",
+      "flag": "--color-range",
+      "short": "-A",
+      "label": "Color range",
+      "help": "Color range, e.g. 'tv', ':pc' or 'pc:tv'.",
+      "group": "color",
+      "order": 20,
+      "appliesTo": "pair",
+      "pairStyle": "colon",
+      "flags": { "both": "--color-range" },
+      "type": { "kind": "string", "placeholder": "tv" }
+    },
+    {
+      "id": "color-primaries",
+      "flag": "--color-primaries",
+      "short": "-P",
+      "label": "Color primaries",
+      "help": "Color primaries, e.g. 'bt709' or 'bt2020:bt709'.",
+      "group": "color",
+      "order": 30,
+      "appliesTo": "pair",
+      "pairStyle": "colon",
+      "flags": { "both": "--color-primaries" },
+      "type": { "kind": "string", "placeholder": "bt709" }
+    },
+    {
+      "id": "color-trc",
+      "flag": "--color-trc",
+      "short": "-N",
+      "label": "Color TRC",
+      "help": "Transfer characteristics, e.g. 'bt709' or 'smpte2084:'.",
+      "group": "color",
+      "order": 40,
+      "appliesTo": "pair",
+      "pairStyle": "colon",
+      "flags": { "both": "--color-trc" },
+      "type": { "kind": "string", "placeholder": "bt709" }
+    },
+    {
+      "id": "tone-map-mode",
+      "flag": "--tone-map-mode",
+      "short": "-T",
+      "label": "Tone map mode",
+      "help": "Adapt tones for sRGB display: auto, off, on, or rel.",
+      "group": "color",
+      "order": 50,
+      "appliesTo": "pair",
+      "pairStyle": "colon",
+      "flags": { "both": "--tone-map-mode" },
+      "type": { "kind": "enum", "values": [
+        { "value": "auto", "label": "Auto" },
+        { "value": "off", "label": "Off" },
+        { "value": "on", "label": "On" },
+        { "value": "rel", "label": "Relative" }
+      ], "default": "auto" }
+    },
+    {
+      "id": "left-peak-nits",
+      "flag": "--left-peak-nits",
+      "short": "-L",
+      "label": "Left peak nits",
+      "help": "Left video peak luminance in nits (e.g. 850 or 1000).",
+      "group": "color",
+      "order": 60,
+      "appliesTo": "left",
+      "type": { "kind": "number", "min": 0, "step": 1 }
+    },
+    {
+      "id": "right-peak-nits",
+      "flag": "--right-peak-nits",
+      "short": "-R",
+      "label": "Right peak nits",
+      "help": "Right video peak luminance in nits.",
+      "group": "color",
+      "order": 70,
+      "appliesTo": "right",
+      "type": { "kind": "number", "min": 0, "step": 1 }
+    },
+    {
+      "id": "boost-tone",
+      "flag": "--boost-tone",
+      "short": "-B",
+      "label": "Boost tone",
+      "help": "Tone-mapping strength factor, e.g. '0.6', ':3' or '2:1.5'.",
+      "group": "color",
+      "order": 80,
+      "appliesTo": "pair",
+      "pairStyle": "colon",
+      "flags": { "both": "--boost-tone" },
+      "type": { "kind": "string", "placeholder": "1" }
+    },
+    {
+      "id": "left-filters",
+      "flag": "--left-filters",
+      "short": "-l",
+      "label": "Left filters",
+      "help": "FFmpeg filters applied to the left video.",
+      "group": "filters",
+      "order": 10,
+      "appliesTo": "left",
+      "type": { "kind": "filter-chain" }
+    },
+    {
+      "id": "right-filters",
+      "flag": "--right-filters",
+      "short": "-r",
+      "label": "Right filters",
+      "help": "FFmpeg filters applied to the right video.",
+      "group": "filters",
+      "order": 20,
+      "appliesTo": "right",
+      "type": { "kind": "filter-chain" }
+    },
+    {
+      "id": "conversion-size",
+      "flag": "--conversion-size",
+      "label": "Conversion size",
+      "help": "Shared conversion canvas size: 'max' or explicit WxH.",
+      "group": "filters",
+      "order": 30,
+      "appliesTo": "global",
+      "type": { "kind": "string", "placeholder": "max" }
+    },
+    {
+      "id": "conversion-fit",
+      "flag": "--conversion-fit",
+      "label": "Conversion fit",
+      "help": "How filtered frames are placed on the conversion canvas: stretch or native.",
+      "group": "filters",
+      "order": 40,
+      "appliesTo": "global",
+      "type": { "kind": "enum", "values": [
+        { "value": "stretch", "label": "Stretch" },
+        { "value": "native", "label": "Native" }
+      ], "default": "stretch" }
+    },
+    {
+      "id": "libvmaf-options",
+      "flag": "--libvmaf-options",
+      "label": "libvmaf options",
+      "help": "libvmaf FFmpeg filter options.",
+      "group": "filters",
+      "order": 50,
+      "appliesTo": "global",
+      "type": { "kind": "string", "placeholder": "model=version=vmaf_v0.6.1" }
+    },
+    {
+      "id": "demuxer",
+      "flag": "--demuxer",
+      "label": "Demuxer",
+      "help": "FFmpeg video demuxer name for both sides.",
+      "group": "io",
+      "order": 10,
+      "appliesTo": "pair",
+      "pairStyle": "separateFlags",
+      "flags": { "both": "--demuxer", "left": "--left-demuxer", "right": "--right-demuxer" },
+      "type": { "kind": "string", "placeholder": "vapoursynth" }
+    },
+    {
+      "id": "decoder",
+      "flag": "--decoder",
+      "label": "Decoder",
+      "help": "FFmpeg video decoder name, e.g. 'h264_cuvid' or ':rewrite_duration=1'.",
+      "group": "io",
+      "order": 20,
+      "appliesTo": "pair",
+      "pairStyle": "separateFlags",
+      "flags": { "both": "--decoder", "left": "--left-decoder", "right": "--right-decoder" },
+      "type": { "kind": "string", "placeholder": "h264_cuvid" }
+    },
+    {
+      "id": "hwaccel",
+      "flag": "--hwaccel",
+      "label": "Hardware acceleration",
+      "help": "FFmpeg video hardware acceleration, e.g. 'cuda', 'videotoolbox', 'vaapi:/dev/dri/renderD128'.",
+      "group": "io",
+      "order": 30,
+      "appliesTo": "pair",
+      "pairStyle": "separateFlags",
+      "flags": { "both": "--hwaccel", "left": "--left-hwaccel", "right": "--right-hwaccel" },
+      "type": { "kind": "string", "placeholder": "cuda" }
+    },
+    {
+      "id": "histogram-window",
+      "flag": "--histogram-window",
+      "label": "Histogram window",
+      "help": "Open always-on-top histogram scopes window.",
+      "group": "scopes",
+      "order": 10,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "vectorscope-window",
+      "flag": "--vectorscope-window",
+      "label": "Vectorscope window",
+      "help": "Open always-on-top vectorscope scopes window.",
+      "group": "scopes",
+      "order": 20,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "waveform-window",
+      "flag": "--waveform-window",
+      "label": "Waveform window",
+      "help": "Open always-on-top waveform scopes window.",
+      "group": "scopes",
+      "order": 30,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "histogram-options",
+      "flag": "--histogram-options",
+      "label": "Histogram options",
+      "help": "Histogram FFmpeg filter options.",
+      "group": "scopes",
+      "order": 40,
+      "appliesTo": "global",
+      "type": { "kind": "string" }
+    },
+    {
+      "id": "vectorscope-options",
+      "flag": "--vectorscope-options",
+      "label": "Vectorscope options",
+      "help": "Vectorscope FFmpeg filter options.",
+      "group": "scopes",
+      "order": 50,
+      "appliesTo": "global",
+      "type": { "kind": "string" }
+    },
+    {
+      "id": "waveform-options",
+      "flag": "--waveform-options",
+      "label": "Waveform options",
+      "help": "Waveform FFmpeg filter options.",
+      "group": "scopes",
+      "order": 60,
+      "appliesTo": "global",
+      "type": { "kind": "string" }
+    },
+    {
+      "id": "scope-size",
+      "flag": "--scope-size",
+      "label": "Scope size",
+      "help": "Initial scope window size as WxH (default 1024x256).",
+      "group": "scopes",
+      "order": 70,
+      "appliesTo": "global",
+      "type": { "kind": "size" }
+    },
+    {
+      "id": "scope-notop",
+      "flag": "--scope-notop",
+      "label": "Scope not always on top",
+      "help": "Do not keep scope windows always on top.",
+      "group": "scopes",
+      "order": 80,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "verbose",
+      "flag": "--verbose",
+      "short": "-v",
+      "label": "Verbose",
+      "help": "Enable verbose output, including library versions and rendering details.",
+      "group": "advanced",
+      "order": 10,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "options-file",
+      "flag": "--options-file",
+      "short": "-o",
+      "label": "Options file",
+      "help": "Read additional command-line options from a file.",
+      "group": "advanced",
+      "order": 20,
+      "appliesTo": "global",
+      "type": { "kind": "path", "mode": "open" }
+    },
+    {
+      "id": "no-auto-options-file",
+      "flag": "--no-auto-options-file",
+      "label": "Disable auto options file",
+      "help": "Do not read options from the auto options file automatically.",
+      "group": "advanced",
+      "order": 30,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    },
+    {
+      "id": "no-auto-filters",
+      "flag": "--no-auto-filters",
+      "label": "Disable auto filters",
+      "help": "Disable automatic injection of filters for deinterlacing, DAR correction, etc.",
+      "group": "advanced",
+      "order": 40,
+      "appliesTo": "global",
+      "type": { "kind": "bool" }
+    }
+  ]
+}

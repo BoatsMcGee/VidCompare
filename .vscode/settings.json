@@ -1,0 +1,21 @@
+{
+    "chat.disableAIFeatures": false,
+    "rust-analyzer.checkOnSave": true,
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.check.features": "all",
+    "rust-analyzer.cargo.targetDir": "target",
+    "files.associations": {
+        "*.svelte": "svelte",
+        "*.rs": "rust"
+    },
+    "editor.formatOnSave": true,
+    "[rust]": {
+        "editor.defaultFormatter": "rust-lang.rust-analyzer"
+    },
+    "[svelte]": {
+        "editor.defaultFormatter": "svelte.svelte-vscode"
+    },
+    "chat.tools.terminal.autoApprove": {
+        "cargo clippy": true
+    }
+}
