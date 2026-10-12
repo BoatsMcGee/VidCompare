@@ -7,19 +7,20 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // Must register before tauri-plugin-wdio, which initializes its own
+        // logger on registration and would otherwise claim the global logger.
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .level(if cfg!(debug_assertions) {
+                    log::LevelFilter::Info
+                } else {
+                    log::LevelFilter::Warn
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_wdio::init())
         .manage(commands::launch::LaunchState::default())
         .manage(commands::embed::EmbedState::default())
-        .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![
             commands::files::list_media_files,
             commands::binary::resolve_binary,
