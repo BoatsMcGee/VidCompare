@@ -50,7 +50,7 @@
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyMjBBRjg1MkRFOENGRTIKUldUaXorZ3RoYThnWWhuNVRWbk1mMWVCYWxPaS9tdTFRMnE2MC9RbGFZbHZiUkVjK3ZMcDZlRkYK",
       "endpoints": [
-        "https://github.com/vidcompare/vidcompare/releases/latest/download/latest.json"
+        "https://github.com/BoatsMcGee/VidCompare/releases/latest/download/latest.json"
       ]
     }
   }

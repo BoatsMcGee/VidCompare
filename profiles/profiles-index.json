@@ -4,7 +4,7 @@
       "id": "video-compare-latest",
       "upstreamVersion": "2025-01-01",
       "minAppVersion": "0.1.0",
-      "url": "https://github.com/vidcompare/vidcompare/releases/latest/download/video-compare-latest.json",
+      "url": "https://github.com/BoatsMcGee/VidCompare/releases/latest/download/video-compare-latest.json",
       "sha256": ""
     }
   ]

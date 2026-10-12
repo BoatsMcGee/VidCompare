@@ -30,4 +30,4 @@ To preview locally, copy captures from `tests/screenshots/` into this folder:
 Copy-Item tests\screenshots\*.png website\static\screenshots\
 ```
 
-Files here are served at `/vidcompare/screenshots/<name>.png`.
+Files here are served at `/VidCompare/screenshots/<name>.png`.

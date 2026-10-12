@@ -1,7 +1,7 @@
 import { base } from '$app/paths';
 
-/** Repository home. TODO: point this at the real repository URL before first deploy. */
-export const repoUrl = 'https://github.com/vidcompare/vidcompare';
+/** Repository home — the single absolute repo URL for the site; everything else derives from it. */
+export const repoUrl = 'https://github.com/BoatsMcGee/VidCompare';
 export const releasesUrl = `${repoUrl}/releases`;
 export const upstreamUrl = 'https://github.com/pixop/video-compare';
 

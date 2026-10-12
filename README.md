@@ -2,11 +2,11 @@
 
 A fast, lightweight, cross-platform GUI launcher for [pixop/video-compare](https://github.com/pixop/video-compare).
 
-[![CI](https://github.com/vidcompare/vidcompare/actions/workflows/ci.yml/badge.svg)](https://github.com/vidcompare/vidcompare/actions/workflows/ci.yml)
-[![Release](https://github.com/vidcompare/vidcompare/actions/workflows/release.yml/badge.svg)](https://github.com/vidcompare/vidcompare/actions/workflows/release.yml)
+[![CI](https://github.com/BoatsMcGee/VidCompare/actions/workflows/ci.yml/badge.svg)](https://github.com/BoatsMcGee/VidCompare/actions/workflows/ci.yml)
+[![Release](https://github.com/BoatsMcGee/VidCompare/actions/workflows/release.yml/badge.svg)](https://github.com/BoatsMcGee/VidCompare/actions/workflows/release.yml)
 [![License: GPL-3.0-only](https://img.shields.io/badge/License-GPL--3.0--only-blue.svg)](LICENSE)
 
-**[Live demo](https://vidcompare.github.io/vidcompare/demo)** — an interactive simulation of the app UI, no install required.
+**[Live demo](https://boatsmcgee.github.io/VidCompare/demo)** — an interactive simulation of the app UI, no install required.
 
 > [!NOTE]
 > This project is built entirely by agentic LLMs and is not ready for production.

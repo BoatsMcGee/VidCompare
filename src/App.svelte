@@ -18,7 +18,7 @@
   import ProfileManager from './lib/components/ProfileManager.svelte';
   import './styles/theme.css';
 
-  const PROFILES_URL = 'https://github.com/vidcompare/vidcompare/releases';
+  const PROFILES_URL = 'https://github.com/BoatsMcGee/VidCompare/releases';
 
   let binaryInfo = $state<{ path: string; source: string; version: string } | null>(null);
   let error = $state<string | null>(null);
