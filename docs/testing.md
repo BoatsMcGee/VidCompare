@@ -80,8 +80,11 @@ npm run e2e
 ```
 
 ### Browser Mode Details
-- Starts Vite dev server on port 1420
-- Mocks `load_settings`, `resolve_binary`, `app_info` before page load
+- Starts Vite dev server on port 1420 (managed by the service; cold Vite
+  caches can exceed 60s to first-ready, so the readiness timeout is 180s)
+- Mocks `load_settings` and `resolve_binary` in the spec's `before()` —
+  which runs after page load, so the app must tolerate rejected startup
+  IPC (see `App.svelte` `onMount`); the mocks cover later re-invocations
 - Runs in headless Chrome — no Rust build, no display needed
 - Tests: `tests/e2e/app.e2e.ts` (window title skipped, UI assertions only)
 

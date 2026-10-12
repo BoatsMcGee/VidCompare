@@ -66,21 +66,27 @@
   }
 
   onMount(async () => {
+    // Each startup step is independent: a rejected settings/binary IPC call
+    // (e.g. unmocked at page load in browser-mode E2E) must not prevent the
+    // embedded profile from loading and rendering the form.
     try {
       appState.settings = await ipc.loadSettings();
       appState.theme = (appState.settings.theme as 'light' | 'dark' | 'system') ?? 'system';
       applyTheme();
-
-      await loadActiveProfile();
-
-      // Resolve binary
-      try {
-        binaryInfo = await ipc.resolveBinary(appState.settings.custom_binary_path ?? undefined);
-      } catch (e) {
-        error = `Binary not found: ${e}`;
-      }
     } catch (e) {
       error = String(e);
+    }
+
+    try {
+      await loadActiveProfile();
+    } catch (e) {
+      error = `Failed to load profile: ${e}`;
+    }
+
+    try {
+      binaryInfo = await ipc.resolveBinary(appState.settings?.custom_binary_path ?? undefined);
+    } catch (e) {
+      error = `Binary not found: ${e}`;
     }
   });
 

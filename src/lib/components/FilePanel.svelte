@@ -96,23 +96,31 @@
   }
 
   $effect(() => {
-    const unlisten = getCurrentWebview().onDragDropEvent((event) => {
-      const payload = event.payload;
-      if (payload.type === 'enter' || payload.type === 'over') {
-        dragActive = true;
-        dragPos = { x: payload.position.x, y: payload.position.y };
-      } else if (payload.type === 'drop') {
-        dragPos = { x: payload.position.x, y: payload.position.y };
-        const over = insideDrop(payload.position);
-        dragActive = false;
-        if (over && payload.paths.length > 0) void handleDrop(payload.paths[0]);
-      } else {
-        dragActive = false;
-        dragPos = null;
-      }
-    });
+    // Drag-drop is Tauri-only: getCurrentWebview() throws outside a Tauri
+    // webview (browser-mode E2E), and an exception here aborts Svelte's
+    // flush, dropping queued renders app-wide.
+    let unlisten: Promise<() => void> | undefined;
+    try {
+      unlisten = getCurrentWebview().onDragDropEvent((event) => {
+        const payload = event.payload;
+        if (payload.type === 'enter' || payload.type === 'over') {
+          dragActive = true;
+          dragPos = { x: payload.position.x, y: payload.position.y };
+        } else if (payload.type === 'drop') {
+          dragPos = { x: payload.position.x, y: payload.position.y };
+          const over = insideDrop(payload.position);
+          dragActive = false;
+          if (over && payload.paths.length > 0) void handleDrop(payload.paths[0]);
+        } else {
+          dragActive = false;
+          dragPos = null;
+        }
+      });
+    } catch {
+      return;
+    }
     return () => {
-      void unlisten.then((f) => f());
+      void unlisten?.then((f) => f());
     };
   });
 

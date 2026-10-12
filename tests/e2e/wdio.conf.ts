@@ -39,9 +39,10 @@ const appBinary = path.resolve(
 
 export const config: Options.Testrunner = {
   runner: 'local',
-  // Spec globs are resolved against the config file's directory (WDIO v10
-  // defaults rootDir to dirname of the config), not the invocation cwd.
-  specs: ['./*.e2e.ts'],
+  // Spec globs resolved against the config file's directory via an absolute
+  // glob (forward slashes so glob never treats Windows backslashes as
+  // escapes) — independent of how the WDIO version defaults rootDir.
+  specs: [`${path.resolve(__dirname, '*.e2e.ts').replaceAll('\\', '/')}`],
   maxInstances: 1,
   user: process.env.WEBDRIVER_USER,
   key: process.env.WEBDRIVER_KEY,
@@ -57,7 +58,9 @@ export const config: Options.Testrunner = {
             devServer: {
               command: 'npx vite --port 1420 --strictPort',
               reuseExistingServer: true,
-              timeoutMs: 60_000,
+              // A cold dependency cache (fresh npm ci wipes node_modules/.vite)
+              // can push Vite's first ready past 60s.
+              timeoutMs: 180_000,
             },
           }
         : {

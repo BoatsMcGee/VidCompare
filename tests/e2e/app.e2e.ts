@@ -8,8 +8,10 @@
  *   is skipped (document.title is not the OS window title).
  *
  * In browser mode the Tauri commands the app invokes on startup
- * (load_settings, resolve_binary, app_info) must be mocked before the
- * page loads, otherwise the app renders its error banner.
+ * (load_settings, resolve_binary) are mocked in before(), which runs
+ * after the page has already loaded — the app tolerates the rejected
+ * startup IPC calls (see App.svelte onMount) and still renders its
+ * normal state; the mocks cover any later re-invocations.
  */
 
 const isBrowserMode = (browser.capabilities as { browserName?: string })
@@ -52,14 +54,15 @@ describe('VidCompare app', () => {
     await header.waitForDisplayed({ timeout: 20_000 });
     expect(await header.isDisplayed()).toBe(true);
 
-    // Both file panels with their side badges and titles.
-    expect(await $('.badge-left').isDisplayed()).toBe(true);
-    expect(await $('.badge-right').isDisplayed()).toBe(true);
-    expect(await $('span=Reference').isDisplayed()).toBe(true);
-    expect(await $('span=Distorted').isDisplayed()).toBe(true);
+    // Both file panels with their side badges and titles. Scoped to
+    // .file-panels — OptionsForm section headings reuse .badge-left/.badge-right.
+    expect(await $('.file-panels .badge-left').isDisplayed()).toBe(true);
+    expect(await $('.file-panels .badge-right').isDisplayed()).toBe(true);
+    expect(await $('span=Left').isDisplayed()).toBe(true);
+    expect(await $('span=Right').isDisplayed()).toBe(true);
 
     // Empty state until a folder is picked.
-    expect(await $('div=No folder selected').isExisting()).toBe(true);
+    expect(await $('button=Click to browse, or drop a file or folder here.').isExisting()).toBe(true);
   });
 
   it('renders the options form with group tabs and search', async () => {
