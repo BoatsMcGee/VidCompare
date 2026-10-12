@@ -7,6 +7,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Build and publish a rolling nightly pre-release'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -83,13 +88,25 @@ jobs:
           workspaces: src-tauri -> target
       - run: npm ci
       - run: npm run build
+      # Nightly builds get a prerelease version (<ver>-nightly.<run_number>)
+      # injected via --config so package.json/tauri.conf.json stay untouched.
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          base=$(node -p "require('./package.json').version")
+          if [ "${{ inputs.nightly }}" = "true" ]; then
+            echo "version=$base-nightly.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$base" >> "$GITHUB_OUTPUT"
+          fi
       # Updater manifest signing (minisign keypair): the private key lives in
       # the TAURI_SIGNING_PRIVATE_KEY secret; tauri build emits *.sig files
       # next to the bundles when it is set. Release artifacts themselves stay
       # unsigned (no code signing — project convention); this is manifest
       # signing only. Portable zips are excluded from auto-update by design.
       - name: Build app
-        run: npx tauri build --target ${{ matrix.target }}
+        run: npx tauri build --target ${{ matrix.target }} --config '{"version":"${{ steps.version.outputs.version }}"}'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -101,7 +118,7 @@ jobs:
         shell: pwsh
         run: |
           $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
-          $ver = [string]$conf.version
+          $ver = '${{ steps.version.outputs.version }}'
           $target = '${{ matrix.target }}'
           $releaseDir = "src-tauri/target/$target/release"
           $stageName = "VidCompare-$ver-portable-win64"
@@ -150,7 +167,7 @@ jobs:
 
   publish:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || inputs.nightly
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -159,6 +176,39 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      # Semver pre-release tags (e.g. v1.2.0-beta.1) publish as a pre-release
+      # and are not marked "Latest"; stable tags become the Latest release.
+      # Nightly runs publish to the rolling `nightly` tag instead.
+      - name: Detect pre-release tag
+        id: prerelease
+        run: |
+          if [ "${{ inputs.nightly }}" = "true" ]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            tag="${GITHUB_REF_NAME}"
+            if [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+- ]]; then
+              echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      # Rolling nightly: delete the previous nightly release + tag so the new
+      # one becomes the single "latest nightly" pre-release.
+      - name: Delete previous nightly release
+        if: inputs.nightly
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete nightly --yes --cleanup-tag || true
+
+      - name: Create nightly tag
+        if: inputs.nightly
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag nightly "$GITHUB_SHA"
+          git push origin nightly --force
+
       # Attaches installers, the Windows portable zip, the updater .sig files,
       # and the standalone option profiles + index (all profiles are
       # OS-independent).
@@ -166,15 +216,22 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ github.token }}
-          generate_release_notes: true
+          tag_name: ${{ inputs.nightly && 'nightly' || github.ref_name }}
+          name: ${{ inputs.nightly && format('Nightly build {0}', github.run_number) || github.ref_name }}
+          generate_release_notes: ${{ !inputs.nightly }}
+          body: ${{ inputs.nightly && format('Automated nightly build of `main` @ {0}. Unsigned pre-release — not marked Latest.', github.sha) || '' }}
+          prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
+          make_latest: ${{ steps.prerelease.outputs.is_prerelease == 'true' && 'false' || 'true' }}
           files: |
             artifacts/**/*
             public/profiles/*.json
             profiles/profiles-index.json
 
       # Rebuild the Pages site so download links and the changelog pick up the
-      # new release (deferred from M6).
+      # new release (deferred from M6). Nightlies skip this — the website
+      # tracks stable releases.
       - name: Dispatch website rebuild
+        if: ${{ !inputs.nightly }}
         uses: benc-uk/workflow-dispatch@v1.2.4
         with:
           workflow: website.yml

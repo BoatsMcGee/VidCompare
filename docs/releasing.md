@@ -52,7 +52,10 @@ Profiles are release artifacts, not build-time side effects:
    are produced next to the bundles when
    `TAURI_SIGNING_PRIVATE_KEY` is set (manifest signing, not code signing).
 4. **GitHub Release**: artifacts + option profiles +
-   `profiles/profiles-index.json` uploaded with generated notes.
+   `profiles/profiles-index.json` uploaded with generated notes. Semver
+   pre-release tags (`vX.Y.Z-<suffix>`, e.g. `v1.2.0-beta.1`) publish as a
+   **pre-release** and are not marked "Latest"; stable tags (`vX.Y.Z`) become
+   the Latest release.
 5. **Post-release**: `release.yml` dispatches `website.yml` so the Pages site
    rebuilds with the new release; regenerate screenshots into
    `tests/screenshots/` and `website/static/screenshots/`. Download links on
@@ -74,7 +77,22 @@ VidCompare-<ver>-portable-win64/
 settings/presets/logs into `Data\`; `app_info` reports portable mode so the UI
 can show the badge.
 
-## 6. Release checklist
+## 6. Nightly builds
+
+`nightly.yml` runs on a daily cron (and manually via `workflow_dispatch`). It
+compares `main` HEAD against the commit the rolling `nightly` tag points at
+and dispatches `release.yml` with `nightly: true` only when code changed.
+
+Nightly runs reuse the release build matrix but:
+
+- inject version `<package.json version>-nightly.<run_number>` via
+  `tauri build --config` (no repo files touched)
+- publish to the rolling `nightly` tag: the previous nightly release + tag
+  are deleted and recreated, so there is exactly one nightly pre-release,
+  never marked "Latest"
+- skip the website rebuild dispatch (the site tracks stable releases)
+
+## 7. Release checklist
 
 - [ ] `npm run check`, `npm run lint`, `npm test`, `cargo test`, clippy/fmt green on `main`
 - [ ] E2E green on all three OSes

@@ -1,0 +1,51 @@
+name: Nightly
+
+# Daily rolling nightly build. Skips when `main` hasn't moved since the
+# commit the current `nightly` release points at. The actual build/publish
+# lives in release.yml (workflow_dispatch with nightly=true) so the build
+# matrix stays in one place.
+on:
+  schedule:
+    - cron: '0 6 * * *' # daily, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - name: Compare main HEAD with nightly tag
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          main_sha="${GITHUB_SHA}"
+          nightly_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/nightly" \
+            --jq '.object.sha' 2>/dev/null || echo "")
+          # Annotated tags return the tag object sha; resolve to the commit.
+          if [ -n "$nightly_sha" ]; then
+            nightly_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/$nightly_sha" \
+              --jq '.sha' 2>/dev/null || echo "$nightly_sha")
+          fi
+          echo "main=$main_sha nightly=$nightly_sha"
+          if [ "$main_sha" = "$nightly_sha" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  dispatch:
+    needs: check-changes
+    if: needs.check-changes.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch release.yml (nightly)
+        uses: benc-uk/workflow-dispatch@v1.2.4
+        with:
+          workflow: release.yml
+          token: ${{ github.token }}
+          inputs: '{ "nightly": true }'
