@@ -41,6 +41,7 @@ class AppState {
 
   // UI
   showSettings = $state(false);
+  view = $state<'setup' | 'compare'>('setup');
 
   get buildState(): BuildState {
     return {

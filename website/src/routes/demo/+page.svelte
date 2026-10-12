@@ -2,6 +2,7 @@
   import { demo } from '$lib/demo/state.svelte';
   import FilePanel from '$lib/demo/FilePanel.svelte';
   import CompareView from '$lib/demo/CompareView.svelte';
+  import CompareSplitButton from '$lib/demo/CompareSplitButton.svelte';
   import OptionsForm from '$lib/demo/OptionsForm.svelte';
   import ActiveChips from '$lib/demo/ActiveChips.svelte';
   import CommandPreview from '$lib/demo/CommandPreview.svelte';
@@ -24,9 +25,13 @@
     <div class="header-actions">
       <span class="badge badge-neutral">bundled · 20261004</span>
       <ThemeToggle />
+      <CompareSplitButton />
     </div>
   </header>
 
+  {#if demo.view === 'compare'}
+    <CompareView />
+  {:else}
   <main>
     <div class="file-panels">
       <FilePanel side="left" />
@@ -36,8 +41,6 @@
       <FilePanel side="right" />
     </div>
 
-    <CompareView />
-
     <OptionsForm />
 
     <ActiveChips />
@@ -46,6 +49,7 @@
       <LogPanel />
     {/if}
   </main>
+  {/if}
 </div>
 
 <style>

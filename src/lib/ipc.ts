@@ -34,6 +34,8 @@ export interface EmbedLaunchResult {
   pid: number;
   embedded: boolean;
   reason: string | null;
+  /** Client-area aspect ratio (w/h) of the captured window, when known. */
+  aspect: number | null;
 }
 
 export interface PathInfo {

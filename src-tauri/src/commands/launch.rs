@@ -58,6 +58,10 @@ pub fn spawn_managed(
         .map_err(|e| format!("Failed to launch: {}", e))?;
 
     let pid = child.id();
+    // OS-level backstop: the child dies with this process even on panic or
+    // crash, where the RunEvent::Exit cleanup never runs.
+    #[cfg(windows)]
+    super::job::assign_to_job(pid);
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let child = Arc::new(Mutex::new(child));
@@ -108,9 +112,18 @@ pub fn spawn_managed(
         let id = id.clone();
         let child = child.clone();
         std::thread::spawn(move || {
-            let code = {
-                let mut c = child.lock().unwrap();
-                c.wait().ok().and_then(|s| s.code())
+            // Poll try_wait instead of holding the mutex across wait(): the
+            // kill command needs the same lock to terminate the child.
+            let code = loop {
+                {
+                    let mut c = child.lock().unwrap();
+                    match c.try_wait() {
+                        Ok(Some(status)) => break status.code(),
+                        Ok(None) => {}
+                        Err(_) => break None,
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
             };
             let _ = app.emit("launch://exit", ExitEvent { id, code });
         });
@@ -145,4 +158,17 @@ pub fn kill(state: State<'_, LaunchState>, id: String) -> Result<(), String> {
         c.kill().map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+/// Terminate every managed child process. Called on app exit so spawned
+/// video-compare instances are never orphaned.
+pub fn kill_all(state: &LaunchState) {
+    let Ok(mut children) = state.children.lock() else {
+        return;
+    };
+    for (_, child) in children.drain() {
+        if let Ok(mut c) = child.lock() {
+            let _ = c.kill();
+        }
+    }
 }

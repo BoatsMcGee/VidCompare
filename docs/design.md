@@ -53,11 +53,8 @@ row itself.
 ## Layout skeleton (full window)
 
 ```
-header:  VidCompare [binary badge] [theme ◐] [settings ⚙]
+header:  VidCompare [binary badge] [theme ◐] [Compare ▾] [settings ⚙]
 body:    file panels:  L Left  ⇄  R Right   (equal widths, 50/50 grid)
-         compare section (primary surface, directly under the file panels):
-                   L video surface | R video surface (16:9, overlay-embedded)
-                   scrub slider + transport controls
          options section (contiguous block):
                    presets bar (presets act on the options below it)
                    group tabs + search
@@ -67,6 +64,10 @@ body:    file panels:  L Left  ⇄  R Right   (equal widths, 50/50 grid)
          command preview (readonly textarea, wraps; no horizontal scroll)
          video-compare output log (inline, only after a launch produces output)
 footer:  status bar
+
+compare page (replaces body when Compare is pressed):
+         slim bar: [← Back] Compare            [embedded]
+         embed surface (fills the window; overlay-embedded video-compare)
 ```
 
 Rules:
@@ -145,29 +146,32 @@ All color decisions are CSS custom properties defined once in
 - The website demo page copies these structures 1:1 so screenshots, demo and
   app never visually diverge.
 
-## Compare section (embedded video-compare window)
+## Compare page (embedded video-compare window)
 
-The **Compare** section sits directly under the file panels and is **always
-rendered** — it is the primary compare surface, not an experimental extra.
+The **Compare** page is a dedicated full-window view — entered via the
+header **Compare** split button — so comparing videos is free of setup UI.
 It embeds the *real* video-compare window rather than recreating its UX:
 
-- A single 16:9 **embed surface** with a placeholder hint until Compare is
-  pressed. On Windows, `embed_launch` spawns video-compare, captures its
-  top-level window, strips the frame, and reparents it as an owned popup
-  over the surface; the surface geometry is forwarded to `embed_set_rect`
-  from a requestAnimationFrame loop **and** from capture-phase
-  `scroll`/`resize` listeners, so the captured window tracks layout changes
-  without lagging behind a scroll. The backend clips the captured window to
-  the visible slice of the surface, so scrolling never lets it overflow past
-  the app window.
+- A single **embed surface** fills the window under a slim bar (Back button
+  + status). Entering the page auto-starts the embed: on Windows,
+  `embed_launch` spawns video-compare, captures its top-level window,
+  strips the frame, and reparents it as an owned popup over the surface;
+  the surface geometry is forwarded to `embed_set_rect` from a
+  requestAnimationFrame loop **and** from capture-phase `scroll`/`resize`
+  listeners, so the captured window tracks layout changes without lagging
+  behind a scroll. The backend clips the captured window to the visible
+  slice of the surface, so scrolling never lets it overflow past the app
+  window.
 - Because the child keeps its own process, renderer, and keyboard handling,
   **every video-compare feature and shortcut works unchanged** — the app
   never re-implements or vendors upstream behavior.
-- **"Open in separate window"** is the explicit backup path (also used
-  automatically when capture is unsupported or fails): the child runs in its
-  own window, exactly like the Launch button.
-- When capture fails the surface shows the reason — never a broken state;
-  the Launch button remains available.
+- When the child process exits, the page **returns to setup automatically**.
+  **Back** (or Esc) releases the embed and returns early.
+- **"Launch in separate window"** (the split-button dropdown item, and the
+  command preview's Launch button) is the explicit backup path: the child
+  runs in its own window.
+- When capture fails the surface shows the reason with a Back button —
+  never a broken state; the external Launch path remains available.
 - Comparison modes (wipe/difference/blend/SSIM) belong to video-compare
   itself and are **not** app features — they will never appear in the Option
   Profile system.

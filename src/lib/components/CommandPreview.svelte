@@ -2,11 +2,8 @@
   import { appState } from '../state/app.svelte';
   import { buildArgs, formatCommand } from '../options/args';
 
-  let { onLaunch }: { onLaunch: () => void } = $props();
-
   let args = $derived(appState.profile ? buildArgs(appState.buildState, appState.profile) : []);
   let command = $derived(formatCommand(args));
-  let canLaunch = $derived(!!appState.leftFile && args.length > 0);
 
   function copy() {
     void navigator.clipboard.writeText(command);
@@ -26,7 +23,6 @@
   </div>
   <div class="actions">
     <button onclick={copy} title="Copy command">📋</button>
-    <button class="primary" onclick={onLaunch} disabled={!canLaunch}>▶ Launch</button>
   </div>
 </div>
 

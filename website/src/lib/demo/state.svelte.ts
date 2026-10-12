@@ -38,6 +38,9 @@ class DemoState {
   activeGroup = $state('quick');
   searchQuery = $state('');
 
+  // UI
+  view = $state<'setup' | 'compare'>('setup');
+
   // Log panel (always visible in the demo, mirroring the app)
   sessions = $state<DemoSession[]>([
     {
@@ -118,21 +121,6 @@ class DemoState {
     } catch {
       /* storage unavailable */
     }
-  }
-
-  /** Simulate launching: append a fresh fake session with canned output. */
-  launch(command: string) {
-    const id = `demo-${this.sessions.length + 1}`;
-    const lines: { stream: 'stdout' | 'stderr'; text: string }[] = [
-      { stream: 'stdout', text: `video-compare 2025-01-01 — pid ${1000 + this.sessions.length}` },
-      { stream: 'stdout', text: `command: ${command}` },
-      { stream: 'stdout', text: `reference : ${this.leftFile ?? ''}` },
-      { stream: 'stdout', text: `distorted : ${this.rightFile ?? ''}` },
-      { stream: 'stderr', text: 'demo mode: no real process was started' },
-      { stream: 'stdout', text: 'window ready — press ? for keyboard help' }
-    ];
-    this.sessions = [...this.sessions, { id, startedAt: Date.now(), exitCode: null, lines }];
-    this.activeSessionId = id;
   }
 
   formatOption(id: string): string | null {

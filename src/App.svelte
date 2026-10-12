@@ -10,6 +10,7 @@
   import { profileMatchesBinary } from './lib/state/version';
   import FilePanel from './lib/components/FilePanel.svelte';
   import CompareView from './lib/components/CompareView.svelte';
+  import CompareSplitButton from './lib/components/CompareSplitButton.svelte';
   import OptionsForm from './lib/components/OptionsForm.svelte';
   import CommandPreview from './lib/components/CommandPreview.svelte';
   import LogPanel from './lib/components/LogPanel.svelte';
@@ -191,6 +192,13 @@
     if (e.key === 'Escape' && appState.showSettings) appState.showSettings = false;
   }
 
+  let canCompare = $derived(!!appState.leftFile && !!appState.rightFiles[0]);
+
+  function startCompare() {
+    if (!canCompare) return;
+    appState.view = 'compare';
+  }
+
   async function openProfilesPage() {
     try {
       await openUrl(PROFILES_URL);
@@ -235,6 +243,7 @@
         <span class="badge badge-neutral">profile · {appState.profile.upstream.version}</span>
       {/if}
       <ThemeToggle />
+      <CompareSplitButton disabled={!canCompare} onCompare={startCompare} onLaunch={launch} />
       <button onclick={() => (appState.showSettings = true)}>Settings</button>
     </div>
   </header>
@@ -254,6 +263,9 @@
     <div class="error-banner">{error} <button onclick={() => (error = null)}>✕</button></div>
   {/if}
 
+  {#if appState.view === 'compare'}
+    <CompareView binaryPath={binaryInfo?.path ?? null} />
+  {:else}
   <main>
     <div class="file-panels">
       <FilePanel side="left" />
@@ -263,17 +275,16 @@
       <FilePanel side="right" />
     </div>
 
-    <CompareView onExternal={launch} binaryPath={binaryInfo?.path ?? null} />
-
     <OptionsForm />
 
     <ActiveChips />
 
-    <CommandPreview onLaunch={launch} />
+    <CommandPreview />
     {#if appState.hasVideoCompareOutput}
       <LogPanel />
     {/if}
   </main>
+  {/if}
 
   {#if appState.showSettings}
     <div class="dialog-overlay">

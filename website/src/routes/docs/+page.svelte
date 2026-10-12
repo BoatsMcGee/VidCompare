@@ -54,8 +54,9 @@
           from the two file panels.
         </li>
         <li>
-          Adjust options — or just press <strong>▶ Launch</strong>. The exact command is always
-          visible in the preview bar at the bottom.
+          Adjust options — or just press <strong>▶ Compare</strong> in the header (its dropdown
+          launches in a separate window). The exact command is always visible in the preview bar
+          at the bottom.
         </li>
       </ol>
       <Screenshot file="main-window-light.png" caption="The main window with both videos selected" />

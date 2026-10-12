@@ -7,24 +7,25 @@
   import { t } from '../i18n/messages';
 
   /**
-   * Embed surface for the real video-compare window (Windows).
+   * Full-page embed surface for the real video-compare window (Windows).
    *
-   * "Compare" spawns video-compare via `embed_launch`; the backend captures
-   * the child's top-level window, strips its frame, and positions it over
-   * the placeholder below. The child keeps its own process, renderer, and
-   * keyboard handling — the full upstream featureset and shortcuts work
+   * Entering this page spawns video-compare via `embed_launch`; the backend
+   * captures the child's top-level window, strips its frame, and positions
+   * it over the surface below. The child keeps its own process, renderer,
+   * and keyboard handling — the full upstream featureset and shortcuts work
    * unchanged. A rAF loop forwards the surface geometry (physical pixels)
-   * so the captured window tracks layout changes. When capture fails or is
-   * unsupported, the launch falls back to a normal external window and the
-   * placeholder explains why.
+   * so the captured window tracks layout changes. When the child exits, the
+   * page returns to setup automatically. When capture fails or is
+   * unsupported, the surface explains why and stays put so the user can go
+   * back and launch externally instead.
    */
-  let { onExternal, binaryPath }: { onExternal?: () => void; binaryPath?: string | null } =
-    $props();
+  let { binaryPath }: { binaryPath?: string | null } = $props();
 
   let embedId = $state<string | null>(null);
   let embedFailed = $state<string | null>(null);
-  let busy = $state(false);
-  let exited = $state(false);
+  // Child process id regardless of capture success, so Back/unmount can
+  // always kill it — including the external-window fallback.
+  let childId: string | null = null;
 
   let surfaceEl = $state<HTMLDivElement | null>(null);
 
@@ -32,47 +33,66 @@
   let rightFile = $derived(appState.rightFiles[0] ?? null);
   let canCompare = $derived(!!leftFile && !!rightFile);
 
+  // Aspect ratio (w/h) of the captured video-compare window, reported by
+  // the backend at capture time. The surface is letterboxed to this so the
+  // video is never stretched. Until known, fill the surface.
+  let contentAspect = $state<number | null>(null);
+
   function measure(el: HTMLElement | null): MpvRect | null {
     if (!el) return null;
     const r = el.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
+    let w = r.width;
+    let h = r.height;
+    if (contentAspect) {
+      if (w / h > contentAspect) w = h * contentAspect;
+      else h = w / contentAspect;
+    }
     return {
-      x: Math.round(r.left * dpr),
-      y: Math.round(r.top * dpr),
-      width: Math.round(r.width * dpr),
-      height: Math.round(r.height * dpr),
+      x: Math.round((r.left + (r.width - w) / 2) * dpr),
+      y: Math.round((r.top + (r.height - h) / 2) * dpr),
+      width: Math.round(w * dpr),
+      height: Math.round(h * dpr),
     };
+  }
+
+  function back() {
+    stopEmbed();
+    appState.view = 'setup';
+  }
+
+  function stopEmbed() {
+    const id = childId;
+    childId = null;
+    embedId = null;
+    if (!id) return;
+    void ipc.embedRelease(id).catch(() => undefined);
+    void ipc.kill(id).catch(() => undefined);
   }
 
   async function compare() {
     if (!leftFile || !rightFile) return;
-    busy = true;
     embedFailed = null;
-    exited = false;
     try {
       const rect = measure(surfaceEl);
       if (!rect) return;
       const args = buildArgs(appState.buildState, appState.profile!);
       const result = await ipc.embedLaunch(binaryPath ?? '', args, rect);
+      childId = result.id;
       embedId = result.embedded ? result.id : null;
+      if (result.embedded && result.aspect && result.aspect > 0) {
+        contentAspect = result.aspect;
+      }
       if (!result.embedded) {
         embedFailed = result.reason ?? 'window capture failed';
       }
     } catch (e) {
       embedFailed = String(e);
-    } finally {
-      busy = false;
     }
   }
 
   // Track the surface geometry so the captured window follows layout
   // changes. The backend dedupes identical rects.
-  //
-  // rAF alone lags during scrolling: the browser may throttle frames and
-  // the child window trails the surface by a frame or more. Scroll and
-  // resize are therefore handled synchronously (capture phase, so we see
-  // the event before the browser paints), with rAF as the catch-all for
-  // every other layout change.
   $effect(() => {
     if (!embedId) return;
     const id = embedId;
@@ -89,7 +109,7 @@
       }
     };
 
-    // Coalesce bursts of scroll events into one IPC call per frame.
+    // Coalesce bursts of scroll/resize events into one IPC call per frame.
     const schedule = () => {
       if (scheduled) return;
       scheduled = true;
@@ -104,19 +124,28 @@
     frame = requestAnimationFrame(tick);
     window.addEventListener('scroll', schedule, { capture: true, passive: true });
     window.addEventListener('resize', schedule, { passive: true });
+    // Moving the app window doesn't change client-relative rects, but the
+    // captured child is positioned in screen space — force a re-push by
+    // invalidating the dedupe cache.
+    const unlistenMove = listen('tauri://move', () => {
+      lastRect = null;
+      schedule();
+    });
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener('scroll', schedule, { capture: true });
       window.removeEventListener('resize', schedule);
+      void unlistenMove.then((f) => f());
     };
   });
 
-  // Watch for the child process exiting.
+  // When the child process exits, return to the setup page.
   $effect(() => {
     const unlisten = listen<{ id: string; code: number | null }>('launch://exit', (e) => {
-      if (embedId && e.payload.id === embedId) {
-        exited = true;
+      if (childId && e.payload.id === childId) {
+        childId = null;
         embedId = null;
+        back();
       }
     });
     return () => {
@@ -124,20 +153,28 @@
     };
   });
 
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') back();
+  }
+
   onMount(() => {
+    // Auto-start once the surface is in the DOM and measurable.
+    const frame = requestAnimationFrame(() => void compare());
     return () => {
-      if (embedId) void ipc.embedRelease(embedId).catch(() => undefined);
+      cancelAnimationFrame(frame);
+      stopEmbed();
     };
   });
 </script>
 
-<section class="compare" aria-label={t('compare.title')}>
-  <header class="compare-header">
-    <h2>{t('compare.title')}</h2>
+<svelte:window onkeydown={handleKeydown} />
+
+<section class="compare-page" aria-label={t('compare.title')}>
+  <header class="compare-bar">
+    <button class="back" onclick={back} data-testid="compare-back">{t('compare.back')}</button>
+    <h1>{t('compare.title')}</h1>
     {#if embedId}
       <span class="status" data-testid="embed-active">{t('compare.embedded')}</span>
-    {:else if exited}
-      <span class="status muted">{t('compare.exited')}</span>
     {/if}
   </header>
 
@@ -155,51 +192,36 @@
       <!-- captured video-compare window renders here -->
     {:else}
       <span class="placeholder">
-        {canCompare
-          ? t('compare.readyHint')
-          : t('compare.needBothFiles')}
+        {canCompare ? t('compare.starting') : t('compare.needBothFiles')}
       </span>
-    {/if}
-  </div>
-
-  <div class="controls" role="group" aria-label={t('compare.title')}>
-    <button class="primary" onclick={compare} disabled={!canCompare || busy} data-testid="compare-launch">
-      {busy ? t('compare.starting') : t('compare.start')}
-    </button>
-    {#if onExternal}
-      <button class="external" onclick={onExternal} disabled={!canCompare || busy} data-testid="open-external">
-        {t('compare.external')}
-      </button>
     {/if}
   </div>
 </section>
 
 <style>
-  .compare {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg-secondary);
-    padding: 10px 12px;
+  .compare-page {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
-  .compare-header {
+  .compare-bar {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
   }
-  .compare-header h2 {
+  .compare-bar h1 {
     font-size: 13px;
     font-weight: 600;
   }
   .status {
     font-size: 11px;
     color: var(--success);
-  }
-  .status.muted {
-    color: var(--fg-muted);
+    margin-left: auto;
   }
   .error {
     font-size: 12px;
@@ -208,14 +230,12 @@
   }
   .surface {
     position: relative;
-    aspect-ratio: 16 / 9;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    flex: 1;
+    min-height: 0;
     background: var(--bg);
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 0;
     overflow: hidden;
   }
   .placeholder {
@@ -225,17 +245,5 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 90%;
-  }
-  .controls {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-  }
-  .controls .external {
-    margin-left: auto;
-  }
-  button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 </style>

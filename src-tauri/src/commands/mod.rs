@@ -6,6 +6,8 @@ pub mod embed_window;
 #[path = "embed_window_stub.rs"]
 pub mod embed_window;
 pub mod files;
+#[cfg(windows)]
+pub mod job;
 pub mod launch;
 pub mod profiles;
 pub mod settings;

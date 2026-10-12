@@ -39,14 +39,13 @@ export const messages = {
   },
   compare: {
     title: 'Compare',
-    start: '▶ Compare',
+    back: '← Back',
     starting: 'Starting…',
     embedded: 'embedded',
-    exited: 'video-compare exited',
+    launchExternal: 'Launch in separate window',
     surfaceRole: 'Embedded video-compare window',
     readyHint: 'video-compare will run embedded here — full keyboard shortcuts supported.',
     needBothFiles: 'Select both a left and a right file to compare.',
-    external: 'Open in separate window',
   },
   options: {
     search: '🔍 Search options…',
@@ -68,7 +67,6 @@ export const messages = {
   },
   command: {
     copy: 'Copy command',
-    launch: '▶ Launch',
   },
   logs: {
     output: 'Output',

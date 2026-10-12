@@ -33,27 +33,12 @@ describe('CommandPreview', () => {
     expect(box.value).toMatch(/video-compare .*a\.mp4.*b\.mp4/);
   });
 
-  it('disables launch without a left file', () => {
-    render(CommandPreview);
-    const launch = screen.getByRole('button', { name: /Launch/ });
-    expect((launch as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it('enables launch with files selected', () => {
+  it('copies the command to the clipboard', async () => {
     appState.leftFile = { path: 'C:\\clips\\a.mp4' };
     appState.rightFiles = [{ path: 'C:\\clips\\b.mp4' }];
     render(CommandPreview);
-    const launch = screen.getByRole('button', { name: /Launch/ });
-    expect((launch as HTMLButtonElement).disabled).toBe(false);
-  });
-
-  it('invokes onLaunch when the launch button is clicked', async () => {
-    appState.leftFile = { path: 'C:\\clips\\a.mp4' };
-    appState.rightFiles = [{ path: 'C:\\clips\\b.mp4' }];
-    const onLaunch = vi.fn();
-    render(CommandPreview, { props: { onLaunch } });
-    await fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
-    expect(onLaunch).toHaveBeenCalledTimes(1);
+    await fireEvent.click(screen.getByTitle('Copy command'));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining('a.mp4'));
   });
 
   it('has no accessibility violations', async () => {

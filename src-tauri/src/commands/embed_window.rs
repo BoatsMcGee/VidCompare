@@ -133,6 +133,24 @@ pub fn capture_window(owner: HWND, hwnd: HWND) -> Result<(), String> {
     Ok(())
 }
 
+/// Client-area aspect ratio (w/h) of the captured window, measured before
+/// restyling. video-compare sizes its window to the videos, so this is the
+/// content aspect the frontend should letterbox to. Falls back to the
+/// window rect when the client area is not yet laid out.
+pub fn window_aspect(hwnd: HWND) -> Option<f64> {
+    unsafe {
+        let mut client = RECT::default();
+        if GetClientRect(hwnd, &mut client).is_ok() {
+            let w = client.right - client.left;
+            let h = client.bottom - client.top;
+            if w > 0 && h > 0 {
+                return Some(w as f64 / h as f64);
+            }
+        }
+    }
+    None
+}
+
 /// Position the captured window over the embed surface (client coords).
 ///
 /// The surface rect is intersected with the owner's client area so the

@@ -134,6 +134,7 @@ export function resetAppState(): void {
   appState.sessions = [];
   appState.activeSessionId = null;
   appState.showSettings = false;
+  appState.view = 'setup';
 }
 
 export function makeEntry(

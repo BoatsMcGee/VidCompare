@@ -40,8 +40,14 @@ pub fn run() {
             commands::profiles::fetch_profiles_index,
             commands::files::describe_path,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while building tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            use tauri::Manager;
+            if let tauri::RunEvent::Exit = event {
+                commands::launch::kill_all(app.state::<commands::launch::LaunchState>().inner());
+            }
+        });
 }
 
 mod commands;

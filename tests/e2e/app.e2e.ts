@@ -77,11 +77,11 @@ describe('VidCompare app', () => {
     expect(await $('h3=Shared (both sides)').isDisplayed()).toBe(true);
   });
 
-  it('renders the launch button (disabled without a left file)', async () => {
-    const launch = await $('button=▶ Launch');
-    await launch.waitForDisplayed({ timeout: 20_000 });
-    expect(await launch.isDisplayed()).toBe(true);
-    expect(await launch.isEnabled()).toBe(false);
+  it('renders the compare split button (disabled without a left file)', async () => {
+    const compare = await $('button=▶ Compare');
+    await compare.waitForDisplayed({ timeout: 20_000 });
+    expect(await compare.isDisplayed()).toBe(true);
+    expect(await compare.isEnabled()).toBe(false);
   });
 
   it('toggles a link chip in the options form', async () => {

@@ -27,7 +27,6 @@
   </div>
   <div class="actions">
     <button onclick={copy} title="Copy command">📋</button>
-    <button class="primary" onclick={() => demo.launch(command)}>▶ Launch</button>
   </div>
 </div>
 

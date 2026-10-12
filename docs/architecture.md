@@ -38,8 +38,8 @@ update manifests; portable builds excluded), `log` (debug builds only).
 
 ## Window Embedding (Compare)
 
-The **Compare** section embeds the *real* video-compare window inside the
-app — not a recreation. video-compare is spawned as a child process (via the
+The dedicated **Compare** page embeds the *real* video-compare window inside
+the app — not a recreation. video-compare is spawned as a child process (via the
 shared launch machinery, so stdout/stderr still streams to the log panel),
 its top-level window is captured by PID, restyled borderless, and reparented
 as an **owned** popup positioned over the HTML embed surface. The child keeps
@@ -70,8 +70,12 @@ featureset and every keyboard shortcut work unchanged.
   (`embed_window_stub.rs`) where embedding is disabled (macOS forbids
   cross-process reparenting; Wayland lacks a stable foreign-surface protocol
   — see `reports/research-embedding-final.md`).
-- **Lifecycle**: `launch://exit` clears the embed state; `EmbedState::drop`
-  releases every captured window on app exit.
+- **Lifecycle**: `launch://exit` clears the embed state; leaving the compare
+  page kills the child. On clean app exit, `RunEvent::Exit` kills every
+  managed child; as a crash/panic backstop, all children are assigned to a
+  Windows Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`
+  (`commands/job.rs`), so the OS terminates them whenever this process dies
+  for any reason. `EmbedState::drop` releases every captured window.
 - **Licensing**: video-compare stays GPL-2.0 in a separate process; no code
   is shared and no third-party library is loaded.
 

@@ -23,7 +23,6 @@ struct EmbedHandle {
     hwnd: isize,
     owner: isize,
     visible: bool,
-    last_rect: Option<Rect>,
 }
 
 #[derive(Default)]
@@ -65,6 +64,10 @@ pub struct EmbedLaunchResult {
     pub embedded: bool,
     /// Present when `embedded` is false: why the fallback is used.
     pub reason: Option<String>,
+    /// Client-area aspect ratio (w/h) of the captured window, when known.
+    /// The frontend letterboxes the surface to this so the video is never
+    /// stretched.
+    pub aspect: Option<f64>,
 }
 
 /// Spawn video-compare and embed its window over the given surface rect.
@@ -90,6 +93,7 @@ pub fn embed_launch(
             captured.map(|()| hwnd)
         }) {
             Ok(hwnd) => {
+                let aspect = embed_window::window_aspect(hwnd);
                 embed_window::position_window(owner, hwnd, to_embed_rect(rect), true)?;
                 embed_state
                     .embeds
@@ -101,7 +105,6 @@ pub fn embed_launch(
                             hwnd: hwnd.0 as isize,
                             owner: owner.0 as isize,
                             visible: true,
-                            last_rect: Some(rect),
                         },
                     );
                 Ok(EmbedLaunchResult {
@@ -110,6 +113,7 @@ pub fn embed_launch(
                     pid: handle.pid,
                     embedded: true,
                     reason: None,
+                    aspect,
                 })
             }
             Err(e) => Ok(EmbedLaunchResult {
@@ -118,6 +122,7 @@ pub fn embed_launch(
                 pid: handle.pid,
                 embedded: false,
                 reason: Some(e),
+                aspect: None,
             }),
         }
     }
@@ -130,6 +135,7 @@ pub fn embed_launch(
             pid: handle.pid,
             embedded: false,
             reason: Some("window embedding is Windows-only".into()),
+            aspect: None,
         })
     }
 }
@@ -148,14 +154,14 @@ pub fn embed_set_rect(
         let Some(handle) = embeds.get_mut(&id) else {
             return Ok(());
         };
-        if handle.visible == visible && handle.last_rect == Some(rect) {
-            return Ok(());
-        }
+        // Reposition even when the rect is unchanged: the frontend forces a
+        // re-push after the app window moves (client coords are stable but
+        // the child's screen position is not). SetWindowPos is async and
+        // cheap, so the dedupe only guards visibility flips.
         let owner = windows::Win32::Foundation::HWND(handle.owner as *mut std::ffi::c_void);
         let hwnd = windows::Win32::Foundation::HWND(handle.hwnd as *mut std::ffi::c_void);
         embed_window::position_window(owner, hwnd, to_embed_rect(rect), visible)?;
         handle.visible = visible;
-        handle.last_rect = Some(rect);
     }
     #[cfg(not(windows))]
     let _ = (state, id, rect, visible);
