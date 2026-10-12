@@ -12,6 +12,7 @@
     "opener:default",
     "shell:default",
     "process:default",
-    "updater:default"
+    "updater:default",
+    "wdio:default"
   ]
 }

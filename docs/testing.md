@@ -91,6 +91,10 @@ npm run e2e
 ### Native Mode Details
 - Launches compiled `src-tauri/target/release/vidcompare` via tauri-driver
 - Requires: `tauri-driver` on PATH (or `TAURI_DRIVER_PATH`), display server
+- Requires the `tauri-plugin-wdio` Rust crate registered in `src-tauri/src/lib.rs`
+  plus `import '@wdio/tauri-plugin'` in `src/main.ts` (with the `wdio:default`
+  capability) — without it the service cannot execute JS or read window state
+  and every test times out
 - Linux CI: `xvfb-run -a --server-args="-screen 0 1920x1080x24"`
 - Windows/macOS: Native display works directly
 - Tests: Same file, but window title assertion runs

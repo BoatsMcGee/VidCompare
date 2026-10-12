@@ -7,6 +7,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_wdio::init())
         .manage(commands::launch::LaunchState::default())
         .manage(commands::embed::EmbedState::default())
         .setup(|app| {
