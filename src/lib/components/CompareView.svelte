@@ -71,12 +71,12 @@
   }
 
   async function compare() {
-    if (!leftFile || !rightFile) return;
+    if (!leftFile || !rightFile || !appState.profile) return;
     embedFailed = null;
     try {
       const rect = measure(surfaceEl);
       if (!rect) return;
-      const args = buildArgs(appState.buildState, appState.profile!);
+      const args = buildArgs(appState.buildState, appState.profile);
       const result = await ipc.embedLaunch(binaryPath ?? '', args, rect);
       childId = result.id;
       embedId = result.embedded ? result.id : null;
@@ -92,7 +92,8 @@
   }
 
   // Track the surface geometry so the captured window follows layout
-  // changes. The backend dedupes identical rects.
+  // changes. Identical rects are deduped here; the backend always
+  // repositions because a window move leaves client coords unchanged.
   $effect(() => {
     if (!embedId) return;
     const id = embedId;

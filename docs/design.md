@@ -167,9 +167,8 @@ It embeds the *real* video-compare window rather than recreating its UX:
   never re-implements or vendors upstream behavior.
 - When the child process exits, the page **returns to setup automatically**.
   **Back** (or Esc) releases the embed and returns early.
-- **"Launch in separate window"** (the split-button dropdown item, and the
-  command preview's Launch button) is the explicit backup path: the child
-  runs in its own window.
+- **"Launch in separate window"** (the split-button dropdown item) is the
+  explicit backup path: the child runs in its own window.
 - When capture fails the surface shows the reason with a Back button —
   never a broken state; the external Launch path remains available.
 - Comparison modes (wipe/difference/blend/SSIM) belong to video-compare

@@ -192,7 +192,9 @@
     if (e.key === 'Escape' && appState.showSettings) appState.showSettings = false;
   }
 
-  let canCompare = $derived(!!appState.leftFile && !!appState.rightFiles[0]);
+  let canCompare = $derived(
+    !!appState.leftFile && !!appState.rightFiles[0] && !!appState.profile && !!binaryInfo,
+  );
 
   function startCompare() {
     if (!canCompare) return;
@@ -208,9 +210,9 @@
   }
 
   async function launch() {
-    if (!binaryInfo || !appState.leftFile) return;
-    const args = buildArgs(appState.buildState, appState.profile!);
+    if (!binaryInfo || !appState.leftFile || !appState.profile) return;
     try {
+      const args = buildArgs(appState.buildState, appState.profile);
       const handle = await ipc.launch(binaryInfo.path, args);
       appState.sessions = [
         ...appState.sessions,

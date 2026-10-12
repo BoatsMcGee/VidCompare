@@ -4,9 +4,10 @@
 //! machinery, so stdout/stderr keep streaming to the log panel), waits for
 //! its top-level window, captures it (borderless + owned by the app
 //! window), and positions it over the HTML embed surface. The frontend
-//! tracks the surface rect per animation frame via `embed_set_rect`; the
-//! backend dedupes identical rects. `launch://exit` tells the frontend
-//! when the child quits.
+//! tracks the surface rect per animation frame via `embed_set_rect` (and
+//! forces a re-push when the app window moves, since the child is
+//! positioned in screen space). `launch://exit` tells the frontend when
+//! the child quits.
 
 use super::launch::{self, LaunchState};
 use serde::{Deserialize, Serialize};
@@ -22,7 +23,6 @@ use super::embed_window;
 struct EmbedHandle {
     hwnd: isize,
     owner: isize,
-    visible: bool,
 }
 
 #[derive(Default)]
@@ -94,7 +94,15 @@ pub fn embed_launch(
         }) {
             Ok(hwnd) => {
                 let aspect = embed_window::window_aspect(hwnd);
-                embed_window::position_window(owner, hwnd, to_embed_rect(rect), true)?;
+                if let Err(e) =
+                    embed_window::position_window(owner, hwnd, to_embed_rect(rect), true)
+                {
+                    // Roll back: detach the captured window and kill the
+                    // child so neither is leaked without an embed id.
+                    embed_window::release_window(hwnd);
+                    let _ = launch::kill_in(&launch_state, &handle.id);
+                    return Err(e);
+                }
                 embed_state
                     .embeds
                     .lock()
@@ -104,7 +112,6 @@ pub fn embed_launch(
                         EmbedHandle {
                             hwnd: hwnd.0 as isize,
                             owner: owner.0 as isize,
-                            visible: true,
                         },
                     );
                 Ok(EmbedLaunchResult {
@@ -157,11 +164,10 @@ pub fn embed_set_rect(
         // Reposition even when the rect is unchanged: the frontend forces a
         // re-push after the app window moves (client coords are stable but
         // the child's screen position is not). SetWindowPos is async and
-        // cheap, so the dedupe only guards visibility flips.
+        // cheap.
         let owner = windows::Win32::Foundation::HWND(handle.owner as *mut std::ffi::c_void);
         let hwnd = windows::Win32::Foundation::HWND(handle.hwnd as *mut std::ffi::c_void);
         embed_window::position_window(owner, hwnd, to_embed_rect(rect), visible)?;
-        handle.visible = visible;
     }
     #[cfg(not(windows))]
     let _ = (state, id, rect, visible);

@@ -24,13 +24,13 @@ struct ExitEvent {
 }
 
 pub struct LaunchState {
-    children: Mutex<HashMap<String, Arc<Mutex<std::process::Child>>>>,
+    children: Arc<Mutex<HashMap<String, Arc<Mutex<std::process::Child>>>>>,
 }
 
 impl Default for LaunchState {
     fn default() -> Self {
         Self {
-            children: Mutex::new(HashMap::new()),
+            children: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -111,6 +111,7 @@ pub fn spawn_managed(
         let app = app.clone();
         let id = id.clone();
         let child = child.clone();
+        let children = state.children.clone();
         std::thread::spawn(move || {
             // Poll try_wait instead of holding the mutex across wait(): the
             // kill command needs the same lock to terminate the child.
@@ -125,6 +126,11 @@ pub fn spawn_managed(
                 }
                 std::thread::sleep(std::time::Duration::from_millis(100));
             };
+            // Drop the dead child from the registry so completed sessions
+            // don't accumulate.
+            if let Ok(mut map) = children.lock() {
+                map.remove(&id);
+            }
             let _ = app.emit("launch://exit", ExitEvent { id, code });
         });
     }
@@ -152,8 +158,14 @@ pub fn launch(
 
 #[tauri::command]
 pub fn kill(state: State<'_, LaunchState>, id: String) -> Result<(), String> {
+    kill_in(state.inner(), &id)
+}
+
+/// Kill a managed child by id. Shared by the `kill` command and internal
+/// rollback paths (e.g. embed positioning failure).
+pub fn kill_in(state: &LaunchState, id: &str) -> Result<(), String> {
     let mut children = state.children.lock().map_err(|e| e.to_string())?;
-    if let Some(child) = children.remove(&id) {
+    if let Some(child) = children.remove(id) {
         let mut c = child.lock().map_err(|e| e.to_string())?;
         c.kill().map_err(|e| e.to_string())?;
     }
