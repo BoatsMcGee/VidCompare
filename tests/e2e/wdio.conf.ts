@@ -39,7 +39,9 @@ const appBinary = path.resolve(
 
 export const config: Options.Testrunner = {
   runner: 'local',
-  specs: ['./tests/e2e/*.e2e.ts'],
+  // Spec globs are resolved against the config file's directory (WDIO v10
+  // defaults rootDir to dirname of the config), not the invocation cwd.
+  specs: ['./*.e2e.ts'],
   maxInstances: 1,
   user: process.env.WEBDRIVER_USER,
   key: process.env.WEBDRIVER_KEY,

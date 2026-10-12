@@ -100,8 +100,10 @@ cd src-tauri && cargo build --release
 # 2. Install tauri-driver
 cargo install tauri-driver --locked
 
-# 3. Linux: install webkit2gtk + xvfb
-sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-4-dev xvfb
+# 3. Linux: install Tauri deps + xvfb (same set as the CI composite
+#    action .github/actions/setup-linux-tauri/action.yml)
+sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
+  libayatana-appindicator3-dev librsvg2-dev webkit2gtk-driver xvfb
 ```
 
 ---

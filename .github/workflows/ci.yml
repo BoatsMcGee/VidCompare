@@ -96,12 +96,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install Linux Tauri build dependencies
+        uses: ./.github/actions/setup-linux-tauri
       # Compile-only placeholder so tauri-build resolves bundle.externalBin
       # and bundle.resources without downloading the real sidecar.
       - name: Create sidecar stub (compile-only)
         run: bash scripts/fetch-sidecars.sh --stub
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
       - run: cargo fmt --check
         working-directory: src-tauri
       - run: cargo clippy -- -D warnings
@@ -116,12 +120,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Install Linux Tauri build dependencies
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/setup-linux-tauri
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
       - name: Create sidecar stub (compile-only, Windows)
         if: runner.os == 'Windows'
         run: ./scripts/fetch-sidecars.ps1 -Stub

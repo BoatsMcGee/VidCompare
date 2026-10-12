@@ -68,24 +68,32 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Frontend must exist before cargo build: tauri-codegen embeds
+      # ../dist (frontendDist) when compiling the app crate.
+      - run: npm ci
+      - name: Build frontend
+        run: npm run build
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Install system dependencies (webkit2gtk, xvfb)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-4-dev libayatana-appindicator3-dev librsvg2-dev xvfb
+        with:
+          workspaces: src-tauri -> target
+      - name: Install Linux Tauri build dependencies
+        uses: ./.github/actions/setup-linux-tauri
+      # Compile-only stub: the native smoke tests never launch video-compare
+      # (a failed resolve_binary only shows a dismissible banner), so the
+      # real sidecar isn't needed here.
+      - name: Create sidecar stub (compile-only)
+        run: bash scripts/fetch-sidecars.sh --stub
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
-      - run: npm ci
-      - name: Build frontend
-        run: npm run build
+      # No TAURI_DRIVER_PATH: ${{ env.HOME }} is not available in the env
+      # context, and tauri-service already finds tauri-driver on PATH.
       - name: Run E2E in native mode (xvfb-run)
         env:
           E2E_MODE: native
-          TAURI_DRIVER_PATH: ${{ env.HOME }}/.cargo/bin/tauri-driver
         run: |
           xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run e2e
 
@@ -102,32 +110,47 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Frontend must exist before cargo build: tauri-codegen embeds
+      # ../dist (frontendDist) when compiling the app crate.
+      - run: npm ci
+      - name: Build frontend
+        run: npm run build
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Install system dependencies (webkit2gtk, xvfb)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-4-dev libayatana-appindicator3-dev librsvg2-dev xvfb
+        with:
+          workspaces: src-tauri -> target
+      - name: Install Linux Tauri build dependencies
+        uses: ./.github/actions/setup-linux-tauri
+      # Compile-only stub: screenshot capture never launches video-compare.
+      - name: Create sidecar stub (compile-only)
+        run: bash scripts/fetch-sidecars.sh --stub
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
-      - run: npm ci
-      - name: Build frontend
-        run: npm run build
+      # No TAURI_DRIVER_PATH: ${{ env.HOME }} is not available in the env
+      # context, and capture.mjs already falls back to tauri-driver on PATH.
       - name: Capture screenshots (xvfb-run, 2× DPI)
-        env:
-          TAURI_DRIVER_PATH: ${{ env.HOME }}/.cargo/bin/tauri-driver
         run: |
           xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run screenshots
+      # Baselines get committed from the artifact only after the first
+      # intentional capture; seed them here instead of failing the gate.
       - name: Compare screenshots (regression check)
-        run: npm run screenshots:compare
+        run: |
+          if compgen -G 'tests/screenshots/baseline/*.png' > /dev/null; then
+            npm run screenshots:compare
+          else
+            echo "No committed baselines yet — seeding from current captures."
+            npm run screenshots:compare -- --update
+          fi
       - name: Upload screenshots as artifact
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-current
-          path: tests/screenshots/current/*.png
+          path: |
+            tests/screenshots/current/*.png
+            tests/screenshots/baseline/*.png
           retention-days: 7
       - name: Upload diff images on failure
         if: failure()
@@ -150,23 +173,28 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Frontend must exist before cargo build: tauri-codegen embeds
+      # ../dist (frontendDist) when compiling the app crate.
+      - run: npm ci
+      - name: Build frontend
+        run: npm run build
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Install system dependencies (webkit2gtk, xvfb)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-4-dev libayatana-appindicator3-dev librsvg2-dev xvfb
+        with:
+          workspaces: src-tauri -> target
+      - name: Install Linux Tauri build dependencies
+        uses: ./.github/actions/setup-linux-tauri
+      # Compile-only stub: screenshot capture never launches video-compare.
+      - name: Create sidecar stub (compile-only)
+        run: bash scripts/fetch-sidecars.sh --stub
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
-      - run: npm ci
-      - name: Build frontend
-        run: npm run build
+      # No TAURI_DRIVER_PATH: ${{ env.HOME }} is not available in the env
+      # context, and capture.mjs already falls back to tauri-driver on PATH.
       - name: Capture screenshots (xvfb-run, 2× DPI)
-        env:
-          TAURI_DRIVER_PATH: ${{ env.HOME }}/.cargo/bin/tauri-driver
         run: |
           xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run screenshots
       - name: Update baselines

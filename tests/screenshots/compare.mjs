@@ -18,7 +18,7 @@
 
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
-import { existsSync, mkdirSync, readdirSync, copyFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, copyFileSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
 import pixelmatch from 'pixelmatch';
 
@@ -100,13 +100,13 @@ function parseArgs() {
 
 function loadPNG(path) {
   return new Promise((resolve, reject) => {
-    const png = PNG.sync.read(require('node:fs').readFileSync(path));
+    const png = PNG.sync.read(readFileSync(path));
     resolve(png);
   });
 }
 
 function savePNG(png, path) {
-  require('node:fs').writeFileSync(path, PNG.sync.write(png));
+  writeFileSync(path, PNG.sync.write(png));
 }
 
 async function compareImages(currentPath, baselinePath, diffPath, threshold) {

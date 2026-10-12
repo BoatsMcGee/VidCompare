@@ -15,7 +15,6 @@ use std::sync::Mutex;
 #[cfg(windows)]
 use tauri::Manager;
 
-#[cfg(windows)]
 use super::embed_window;
 
 /// Bookkeeping for one embedded child window.
@@ -29,6 +28,9 @@ struct EmbedHandle {
 
 #[derive(Default)]
 pub struct EmbedState {
+    // Only mutated on Windows; kept on all platforms so command signatures
+    // stay platform-independent.
+    #[cfg_attr(not(windows), allow(dead_code))]
     embeds: Mutex<HashMap<String, EmbedHandle>>,
 }
 
@@ -162,14 +164,7 @@ pub fn embed_set_rect(
 
 #[tauri::command]
 pub fn embed_available() -> bool {
-    #[cfg(windows)]
-    {
-        embed_window::embeddable()
-    }
-    #[cfg(not(windows))]
-    {
-        embed_window::embeddable()
-    }
+    embed_window::embeddable()
 }
 
 /// Release an embed: detach the window so it can outlive the app UI.
