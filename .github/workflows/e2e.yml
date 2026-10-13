@@ -84,6 +84,11 @@ jobs:
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
+      # Verify the binary exists and can start before running E2E
+      - name: Verify app binary
+        run: |
+          ./src-tauri/target/release/vidcompare.exe --version || true
+          Test-Path ./src-tauri/target/release/vidcompare.exe && echo "Binary exists" || echo "Binary MISSING"
       - name: Run E2E in native mode
         env:
           E2E_MODE: native
@@ -113,6 +118,8 @@ jobs:
       # Compile-only stub: screenshot capture never launches video-compare.
       - name: Create sidecar stub (compile-only)
         run: ./scripts/fetch-sidecars.ps1 -Stub
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
