@@ -86,22 +86,6 @@ jobs:
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
-      # B2: verify the frontend was embedded into the binary
-      - name: Verify dist contents
-        run: |
-          ls -la dist/
-          ls -la dist/assets/ || true
-          test -f dist/index.html && echo "dist/index.html exists" || echo "dist/index.html MISSING"
-      # B1: verify the embedded WebDriver server starts when the app launches
-      - name: Smoke-test embedded WebDriver
-        run: |
-          xvfb-run -a --server-args="-screen 0 1920x1080x24" \
-            ./src-tauri/target/release/vidcompare &
-          APP_PID=$!
-          sleep 5
-          curl -sf http://localhost:4445/status && echo "Embedded WebDriver OK" || echo "Embedded WebDriver NOT responding"
-          kill $APP_PID 2>/dev/null || true
-          wait $APP_PID 2>/dev/null || true
       - name: Run E2E in native mode (xvfb-run)
         env:
           E2E_MODE: native
