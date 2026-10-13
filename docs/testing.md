@@ -92,18 +92,18 @@ npm run e2e
 - Launches compiled `src-tauri/target/release/vidcompare` via the embedded
   WebDriver provider (`tauri-plugin-wdio-webdriver`) — no external tauri-driver
   needed
-- Requires: display server
+- Requires: display server (native on Windows/macOS, Xvfb on Linux)
 - Requires the `tauri-plugin-wdio` and `tauri-plugin-wdio-webdriver` Rust crates
   registered in `src-tauri/src/lib.rs` plus `import '@wdio/tauri-plugin'` in
   `src/main.ts` (with the `wdio:default` capability) — without them the service
   cannot execute JS or read window state and every test times out
-- Linux CI: `xvfb-run -a --server-args="-screen 0 1920x1080x24"` with
-  `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1`
-  (WebKitGTK ≥2.42 renders a blank webview under Xvfb without them —
-  tauri-apps/tauri#15936, #9304)
 - `captureBackendLogs`/`captureFrontendLogs` are enabled in native mode so app
   and webview stderr land in the CI log (a dead webview is otherwise silent)
 - Windows/macOS: Native display works directly
+- Linux: Requires Xvfb and WebKitGTK software rendering env vars
+  (`WEBKIT_DISABLE_DMABUF_RENDERER=1`, `WEBKIT_DISABLE_COMPOSITING_MODE=1`) —
+  but native E2E currently runs on Windows CI because WebKitGTK under Xvfb
+  fails to initialize the webview silently (tauri-apps/tauri#15936)
 - Tests: Same file, but window title assertion runs
 
 ### Prerequisites (Native)
@@ -111,7 +111,8 @@ npm run e2e
 # 1. Build Tauri app
 cd src-tauri && cargo build --release
 
-# 2. Linux: install Tauri deps + xvfb (same set as the CI composite
+# 2. Windows/macOS: no additional setup needed
+#    Linux: install Tauri deps + xvfb (same set as the CI composite
 #    action .github/actions/setup-linux-tauri/action.yml)
 sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
   libayatana-appindicator3-dev librsvg2-dev xvfb
@@ -184,13 +185,15 @@ npm run screenshots:compare --threshold=0.02  # Custom threshold (default 1%)
 | Job | Mode | Display | Purpose |
 |-----|------|---------|---------|
 | `e2e-browser` | Browser | ❌ | Fast smoke tests on every push/PR |
-| `e2e-native` | Native | ✅ (xvfb) | Full integration tests |
-| `screenshots` | Native | ✅ (xvfb) | Capture + regression compare (needs e2e-native) |
-| `screenshots-update` | Native | ✅ (xvfb) | **Manual dispatch** to refresh baselines |
+| `e2e-native` | Native | ✅ (Windows) | Full integration tests |
+| `screenshots` | Native | ✅ (Windows) | Capture + regression compare (needs e2e-native) |
+| `screenshots-update` | Native | ✅ (Windows) | **Manual dispatch** to refresh baselines |
 
 **Key CI notes:**
 - `e2e-browser` runs on every push/PR (no display needed)
-- `e2e-native` + `screenshots` require xvfb-run — clearly marked in workflow
+- `e2e-native` + `screenshots` run on `windows-latest` — WebKitGTK under Xvfb
+  on Linux fails to initialize the webview silently, so native tests use
+  Windows WebView2 instead
 - `screenshots-update` is `workflow_dispatch` only — run manually when design changes
 - Artifacts uploaded: `screenshots-current`, `screenshots-diff` (on failure), `screenshots-baseline` (on update)
 
@@ -212,14 +215,11 @@ E2E_MODE=browser npm run e2e
 # 1. Build Rust
 cd src-tauri && cargo build --release
 
-# 2. Install tauri-driver (once)
-cargo install tauri-driver --locked
-
-# 3. Run native E2E
-# Linux:
-xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run e2e
+# 2. Run native E2E
 # Windows/macOS:
 npm run e2e
+# Linux (headless):
+xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run e2e
 ```
 
 ### Screenshots Locally
@@ -247,7 +247,7 @@ Copy-Item tests\screenshots\current\*.png website\static\screenshots\
 | Issue | Solution |
 |-------|----------|
 | `No display` (Linux) | Run under `xvfb-run -a --server-args="-screen 0 1920x1080x24"` |
-| Blank/white window under xvfb (native E2E/screenshots) | Set `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1` — WebKitGTK ≥2.42 software rendering on headless CI (tauri-apps/tauri#15936, #9304) |
+| Blank/white window under xvfb (native E2E/screenshots) | Set `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1` — WebKitGTK ≥2.42 software rendering on headless CI (tauri-apps/tauri#15936, #9304). If the webview still doesn't load, use Windows CI instead. |
 | `Binary not found` | `cd src-tauri && cargo build --release` |
 | Screenshot mismatch | Check `tests/screenshots/diff/*.png`; run `--update` if intentional |
 | Coverage below threshold | Add tests for uncovered lines/branches/functions |
