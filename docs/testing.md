@@ -95,7 +95,12 @@ npm run e2e
   plus `import '@wdio/tauri-plugin'` in `src/main.ts` (with the `wdio:default`
   capability) — without it the service cannot execute JS or read window state
   and every test times out
-- Linux CI: `xvfb-run -a --server-args="-screen 0 1920x1080x24"`
+- Linux CI: `xvfb-run -a --server-args="-screen 0 1920x1080x24"` with
+  `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1`
+  (WebKitGTK ≥2.42 renders a blank webview under Xvfb without them —
+  tauri-apps/tauri#15936, #9304)
+- `captureBackendLogs`/`captureFrontendLogs` are enabled in native mode so app
+  and webview stderr land in the CI log (a dead webview is otherwise silent)
 - Windows/macOS: Native display works directly
 - Tests: Same file, but window title assertion runs
 
@@ -111,6 +116,10 @@ cargo install tauri-driver --locked
 #    action .github/actions/setup-linux-tauri/action.yml)
 sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
   libayatana-appindicator3-dev librsvg2-dev webkit2gtk-driver xvfb
+
+# 4. Headless Linux only: force WebKitGTK software rendering, otherwise the
+#    webview stays blank under Xvfb (no GPU)
+export WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1
 ```
 
 ---
@@ -240,6 +249,7 @@ Copy-Item tests\screenshots\current\*.png website\static\screenshots\
 |-------|----------|
 | `tauri-driver not found` | `cargo install tauri-driver --locked` or set `TAURI_DRIVER_PATH` |
 | `No display` (Linux) | Run under `xvfb-run -a --server-args="-screen 0 1920x1080x24"` |
+| Blank/white window under xvfb (native E2E/screenshots) | Set `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1` — WebKitGTK ≥2.42 software rendering on headless CI (tauri-apps/tauri#15936, #9304) |
 | `Binary not found` | `cd src-tauri && cargo build --release` |
 | Screenshot mismatch | Check `tests/screenshots/diff/*.png`; run `--update` if intentional |
 | Coverage below threshold | Add tests for uncovered lines/branches/functions |

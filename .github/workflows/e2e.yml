@@ -47,7 +47,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - run: npm ci
       - name: Build frontend only (no Rust)
         run: npm run build
@@ -94,6 +93,10 @@ jobs:
       - name: Run E2E in native mode (xvfb-run)
         env:
           E2E_MODE: native
+          # WebKitGTK ≥2.42 renders a blank webview under Xvfb (no GPU) unless
+          # DMABUF/compositing are disabled — tauri-apps/tauri#15936, #9304.
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+          WEBKIT_DISABLE_COMPOSITING_MODE: '1'
         run: |
           xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run e2e
 
@@ -132,6 +135,10 @@ jobs:
       # No TAURI_DRIVER_PATH: ${{ env.HOME }} is not available in the env
       # context, and capture.mjs already falls back to tauri-driver on PATH.
       - name: Capture screenshots (xvfb-run, 2× DPI)
+        env:
+          # See e2e-native: blank webview under Xvfb without these.
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+          WEBKIT_DISABLE_COMPOSITING_MODE: '1'
         run: |
           xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run screenshots
       # Baselines get committed from the artifact only after the first
@@ -195,6 +202,10 @@ jobs:
       # No TAURI_DRIVER_PATH: ${{ env.HOME }} is not available in the env
       # context, and capture.mjs already falls back to tauri-driver on PATH.
       - name: Capture screenshots (xvfb-run, 2× DPI)
+        env:
+          # See e2e-native: blank webview under Xvfb without these.
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+          WEBKIT_DISABLE_COMPOSITING_MODE: '1'
         run: |
           xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run screenshots
       - name: Update baselines

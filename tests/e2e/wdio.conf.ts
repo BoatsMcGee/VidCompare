@@ -71,6 +71,10 @@ export const config: Options.Testrunner = {
             tauriDriverPath: process.env.TAURI_DRIVER_PATH,
             autoInstallTauriDriver: false,
             autoDownloadEdgeDriver: true,
+            // Pipe app stdout/stderr (incl. WebKitGTK errors) into the WDIO
+            // reporter — otherwise a dead webview leaves no trace in CI logs.
+            captureBackendLogs: true,
+            captureFrontendLogs: true,
           },
     ],
   ],

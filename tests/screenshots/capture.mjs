@@ -22,7 +22,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
-import { remote } from 'webdriverio';
+import { startWdioSession, cleanupWdioSession } from '@wdio/tauri-service';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -80,11 +80,25 @@ async function checkPrerequisites() {
 
   let driverPath = process.env.TAURI_DRIVER_PATH;
   if (!driverPath) {
-    // Check if tauri-driver is on PATH
+    // tauri-driver has no --version flag (unknown args exit 1), so resolve
+    // the binary path the same way @wdio/tauri-service's findTauriDriver does.
+    const whichCmd = process.platform === 'win32' ? 'where' : 'which';
     try {
-      const { stdout } = await runCommand('tauri-driver', ['--version']);
-      driverPath = stdout.trim();
+      const { stdout } = await runCommand(whichCmd, ['tauri-driver']);
+      const candidate = stdout.trim().split('\n')[0].trim();
+      if (candidate && existsSync(candidate)) {
+        driverPath = candidate;
+      }
     } catch {
+      // not on PATH — fall through to common install location
+    }
+    if (!driverPath) {
+      const cargoBin = join(process.env.HOME || process.env.USERPROFILE || '', '.cargo', 'bin', process.platform === 'win32' ? 'tauri-driver.exe' : 'tauri-driver');
+      if (existsSync(cargoBin)) {
+        driverPath = cargoBin;
+      }
+    }
+    if (!driverPath) {
       missing.push('tauri-driver not found on PATH\n  Fix: cargo install tauri-driver (or set TAURI_DRIVER_PATH)');
     }
   } else if (!existsSync(driverPath)) {
@@ -119,33 +133,22 @@ async function captureScreenshots(binaryPath, driverPath) {
   if (existsSync(CURRENT_DIR)) rmSync(CURRENT_DIR, { recursive: true });
   mkdirSync(CURRENT_DIR, { recursive: true });
 
-  const client = await remote({
-    runner: 'local',
-    hostname: 'localhost',
-    port: 4444,
-    path: '/',
-    capabilities: {
-      browserName: 'tauri',
-      'tauri:options': {
-        application: binaryPath,
-      },
+  // Standalone session via the service's init/cleanup API — plain
+  // webdriverio remote() ignores `services` (only the WDIO testrunner
+  // initializes them), so the driver would never be spawned otherwise.
+  const client = await startWdioSession({
+    'wdio:tauriServiceOptions': {
+      mode: 'native',
+      driverProvider: 'external',
+      appBinaryPath: binaryPath,
+      tauriDriverPath: driverPath,
+      autoInstallTauriDriver: false,
+      autoDownloadEdgeDriver: true,
+      captureBackendLogs: true,
     },
-    services: [
-      [
-        '@wdio/tauri-service',
-        {
-          mode: 'native',
-          driverProvider: 'external',
-          appBinaryPath: binaryPath,
-          tauriDriverPath: driverPath,
-          autoInstallTauriDriver: false,
-          autoDownloadEdgeDriver: true,
-        },
-      ],
-    ],
-    logLevel: 'warn',
-    connectionRetryTimeout: 120000,
-    connectionRetryCount: 3,
+    'tauri:options': {
+      application: binaryPath,
+    },
   });
 
   try {
@@ -178,7 +181,7 @@ async function captureScreenshots(binaryPath, driverPath) {
       console.log(`  Saved: ${outputPath}`);
     }
   } finally {
-    await client.deleteSession();
+    await cleanupWdioSession(client);
   }
 }
 

@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  actions: write # required to dispatch release.yml
 
 jobs:
   check-changes:
@@ -44,8 +45,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch release.yml (nightly)
-        uses: benc-uk/workflow-dispatch@v1.2.4
-        with:
-          workflow: release.yml
-          token: ${{ github.token }}
-          inputs: '{ "nightly": true }'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release.yml -f nightly=true
