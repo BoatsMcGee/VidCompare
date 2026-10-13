@@ -89,14 +89,13 @@ npm run e2e
 - Tests: `tests/e2e/app.e2e.ts` (window title skipped, UI assertions only)
 
 ### Native Mode Details
-- Launches compiled `src-tauri/target/release/vidcompare` via the embedded
-  WebDriver provider (`tauri-plugin-wdio-webdriver`) — no external tauri-driver
-  needed
+- Launches compiled `src-tauri/target/release/vidcompare` via tauri-driver
+  (external provider) — requires `tauri-driver` on PATH (or `TAURI_DRIVER_PATH`)
 - Requires: display server (native on Windows/macOS, Xvfb on Linux)
-- Requires the `tauri-plugin-wdio` and `tauri-plugin-wdio-webdriver` Rust crates
-  registered in `src-tauri/src/lib.rs` plus `import '@wdio/tauri-plugin'` in
-  `src/main.ts` (with the `wdio:default` capability) — without them the service
-  cannot execute JS or read window state and every test times out
+- Requires the `tauri-plugin-wdio` Rust crate registered in `src-tauri/src/lib.rs`
+  plus `import '@wdio/tauri-plugin'` in `src/main.ts` (with the `wdio:default`
+  capability) — without it the service cannot execute JS or read window state
+  and every test times out
 - `captureBackendLogs`/`captureFrontendLogs` are enabled in native mode so app
   and webview stderr land in the CI log (a dead webview is otherwise silent)
 - Windows/macOS: Native display works directly
@@ -111,13 +110,16 @@ npm run e2e
 # 1. Build Tauri app
 cd src-tauri && cargo build --release
 
-# 2. Windows/macOS: no additional setup needed
+# 2. Install tauri-driver
+cargo install tauri-driver --locked
+
+# 3. Windows/macOS: no additional setup needed
 #    Linux: install Tauri deps + xvfb (same set as the CI composite
 #    action .github/actions/setup-linux-tauri/action.yml)
 sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
   libayatana-appindicator3-dev librsvg2-dev xvfb
 
-# 3. Headless Linux only: force WebKitGTK software rendering, otherwise the
+# 4. Headless Linux only: force WebKitGTK software rendering, otherwise the
 #    webview stays blank under Xvfb (no GPU)
 export WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1
 ```
@@ -215,7 +217,10 @@ E2E_MODE=browser npm run e2e
 # 1. Build Rust
 cd src-tauri && cargo build --release
 
-# 2. Run native E2E
+# 2. Install tauri-driver (once)
+cargo install tauri-driver --locked
+
+# 3. Run native E2E
 # Windows/macOS:
 npm run e2e
 # Linux (headless):

@@ -18,7 +18,6 @@ pub fn run() {
                 })
                 .build(),
         )
-        .plugin(tauri_plugin_wdio_webdriver::init())
         .plugin(tauri_plugin_wdio::init())
         .manage(commands::launch::LaunchState::default())
         .manage(commands::embed::EmbedState::default())

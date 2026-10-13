@@ -65,10 +65,12 @@ export const config: Options.Testrunner = {
           }
         : {
             mode: 'native',
-            // Embedded provider runs the WebDriver server inside the app via
-            // tauri-plugin-wdio-webdriver — no external tauri-driver needed.
-            driverProvider: 'embedded',
+            driverProvider: 'external',
             appBinaryPath: appBinary,
+            // CI installs tauri-driver into a known prefix; see e2e.yml.
+            tauriDriverPath: process.env.TAURI_DRIVER_PATH,
+            autoInstallTauriDriver: false,
+            autoDownloadEdgeDriver: true,
             // Pipe app stdout/stderr (incl. WebKitGTK errors) into the WDIO
             // reporter — otherwise a dead webview leaves no trace in CI logs.
             captureBackendLogs: true,
