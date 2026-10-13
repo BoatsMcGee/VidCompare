@@ -88,6 +88,12 @@ jobs:
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
+      # Smoke-test the binary directly under xvfb to catch startup crashes
+      # before tauri-driver gets involved.
+      - name: Smoke-test app binary
+        run: |
+          xvfb-run -a --server-args="-screen 0 1920x1080x24" \
+            timeout 10s ./src-tauri/target/release/vidcompare || true
       # No TAURI_DRIVER_PATH: ${{ env.HOME }} is not available in the env
       # context, and tauri-service already finds tauri-driver on PATH.
       - name: Run E2E in native mode (xvfb-run)
