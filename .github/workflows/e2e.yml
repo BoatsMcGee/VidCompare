@@ -81,14 +81,13 @@ jobs:
         run: ./scripts/fetch-sidecars.ps1 -Stub
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
+      - name: Install WebView2 Runtime
+        run: |
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "webview2installer.exe"
+          Start-Process -Wait -FilePath "webview2installer.exe" -ArgumentList "/silent", "/install"
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
-      # Verify the binary exists and can start before running E2E
-      - name: Verify app binary
-        run: |
-          ./src-tauri/target/release/vidcompare.exe --version || true
-          Test-Path ./src-tauri/target/release/vidcompare.exe && echo "Binary exists" || echo "Binary MISSING"
       - name: Run E2E in native mode
         env:
           E2E_MODE: native
@@ -120,6 +119,10 @@ jobs:
         run: ./scripts/fetch-sidecars.ps1 -Stub
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
+      - name: Install WebView2 Runtime
+        run: |
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "webview2installer.exe"
+          Start-Process -Wait -FilePath "webview2installer.exe" -ArgumentList "/silent", "/install"
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
@@ -178,6 +181,10 @@ jobs:
         run: ./scripts/fetch-sidecars.ps1 -Stub
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
+      - name: Install WebView2 Runtime
+        run: |
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "webview2installer.exe"
+          Start-Process -Wait -FilePath "webview2installer.exe" -ArgumentList "/silent", "/install"
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
