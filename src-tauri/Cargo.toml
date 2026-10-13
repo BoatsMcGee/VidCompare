@@ -28,6 +28,7 @@ tauri-plugin-fs = "2"
 tauri-plugin-process = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-wdio = "1"
+tauri-plugin-wdio-webdriver = "1"
 uuid = { version = "1", features = ["v4"] }
 which = "8"
 dirs = "6"

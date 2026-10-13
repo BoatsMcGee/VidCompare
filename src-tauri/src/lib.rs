@@ -1,6 +1,5 @@
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    eprintln!("[vidcompare] starting up");
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -19,6 +18,7 @@ pub fn run() {
                 })
                 .build(),
         )
+        .plugin(tauri_plugin_wdio_webdriver::init())
         .plugin(tauri_plugin_wdio::init())
         .manage(commands::launch::LaunchState::default())
         .manage(commands::embed::EmbedState::default())
@@ -49,7 +49,6 @@ pub fn run() {
                 commands::launch::kill_all(app.state::<commands::launch::LaunchState>().inner());
             }
         });
-    eprintln!("[vidcompare] event loop exited");
 }
 
 mod commands;

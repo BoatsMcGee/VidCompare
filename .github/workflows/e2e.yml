@@ -83,19 +83,9 @@ jobs:
       # real sidecar isn't needed here.
       - name: Create sidecar stub (compile-only)
         run: bash scripts/fetch-sidecars.sh --stub
-      - name: Install tauri-driver
-        run: cargo install tauri-driver --locked
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
-      # Smoke-test the binary directly under xvfb to catch startup crashes
-      # before tauri-driver gets involved.
-      - name: Smoke-test app binary
-        run: |
-          xvfb-run -a --server-args="-screen 0 1920x1080x24" \
-            timeout 10s ./src-tauri/target/release/vidcompare || true
-      # No TAURI_DRIVER_PATH: ${{ env.HOME }} is not available in the env
-      # context, and tauri-service already finds tauri-driver on PATH.
       - name: Run E2E in native mode (xvfb-run)
         env:
           E2E_MODE: native
@@ -133,13 +123,9 @@ jobs:
       # Compile-only stub: screenshot capture never launches video-compare.
       - name: Create sidecar stub (compile-only)
         run: bash scripts/fetch-sidecars.sh --stub
-      - name: Install tauri-driver
-        run: cargo install tauri-driver --locked
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
-      # No TAURI_DRIVER_PATH: ${{ env.HOME }} is not available in the env
-      # context, and capture.mjs already falls back to tauri-driver on PATH.
       - name: Capture screenshots (xvfb-run, 2× DPI)
         env:
           # See e2e-native: blank webview under Xvfb without these.
@@ -200,13 +186,9 @@ jobs:
       # Compile-only stub: screenshot capture never launches video-compare.
       - name: Create sidecar stub (compile-only)
         run: bash scripts/fetch-sidecars.sh --stub
-      - name: Install tauri-driver
-        run: cargo install tauri-driver --locked
       - name: Build Tauri app (release)
         run: cargo build --release
         working-directory: src-tauri
-      # No TAURI_DRIVER_PATH: ${{ env.HOME }} is not available in the env
-      # context, and capture.mjs already falls back to tauri-driver on PATH.
       - name: Capture screenshots (xvfb-run, 2× DPI)
         env:
           # See e2e-native: blank webview under Xvfb without these.

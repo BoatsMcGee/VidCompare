@@ -2,12 +2,12 @@
 /**
  * VidCompare screenshot capture script.
  *
- * Uses WebdriverIO + tauri-driver to launch the compiled Tauri app and capture
- * 7 screenshots at 2× DPI matching the exact filenames expected by the website.
+ * Uses WebdriverIO's embedded WebDriver provider (tauri-plugin-wdio-webdriver)
+ * to launch the compiled Tauri app and capture 7 screenshots at 2× DPI
+ * matching the exact filenames expected by the website.
  *
  * Prerequisites (native mode):
  *   - Built Tauri binary: `cargo build --release` in src-tauri/
- *   - tauri-driver on PATH (or TAURI_DRIVER_PATH env var)
  *   - Display server (Xvfb on headless Linux, native on Windows/macOS)
  *
  * If prerequisites are missing, exits 0 with a clear message (CI-friendly).
@@ -18,7 +18,6 @@
  * Output: tests/screenshots/current/*.png (7 files)
  */
 
-import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
@@ -52,9 +51,7 @@ Captures 7 screenshots at 2× DPI for the website gallery.
 
 Prerequisites (native mode):
   1. Build the Tauri app:    cd src-tauri && cargo build --release
-  2. Install tauri-driver:   cargo install tauri-driver
-     (or set TAURI_DRIVER_PATH to its location)
-  3. Display server:
+  2. Display server:
      - Linux CI: xvfb-run -a --server-args="-screen 0 1920x1080x24"
      - Windows/macOS: native display
 
@@ -78,57 +75,15 @@ async function checkPrerequisites() {
     missing.push(`Tauri binary not found: ${binaryPath}\n  Fix: cd src-tauri && cargo build --release`);
   }
 
-  let driverPath = process.env.TAURI_DRIVER_PATH;
-  if (!driverPath) {
-    // tauri-driver has no --version flag (unknown args exit 1), so resolve
-    // the binary path the same way @wdio/tauri-service's findTauriDriver does.
-    const whichCmd = process.platform === 'win32' ? 'where' : 'which';
-    try {
-      const { stdout } = await runCommand(whichCmd, ['tauri-driver']);
-      const candidate = stdout.trim().split('\n')[0].trim();
-      if (candidate && existsSync(candidate)) {
-        driverPath = candidate;
-      }
-    } catch {
-      // not on PATH — fall through to common install location
-    }
-    if (!driverPath) {
-      const cargoBin = join(process.env.HOME || process.env.USERPROFILE || '', '.cargo', 'bin', process.platform === 'win32' ? 'tauri-driver.exe' : 'tauri-driver');
-      if (existsSync(cargoBin)) {
-        driverPath = cargoBin;
-      }
-    }
-    if (!driverPath) {
-      missing.push('tauri-driver not found on PATH\n  Fix: cargo install tauri-driver (or set TAURI_DRIVER_PATH)');
-    }
-  } else if (!existsSync(driverPath)) {
-    missing.push(`TAURI_DRIVER_PATH set but not found: ${driverPath}`);
-  }
-
   // Check for display on Linux
   if (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
     missing.push('No display server (DISPLAY/WAYLAND_DISPLAY not set)\n  Fix: run under xvfb-run -a --server-args="-screen 0 1920x1080x24"');
   }
 
-  return { binaryPath, driverPath, missing };
+  return { binaryPath, missing };
 }
 
-function runCommand(cmd, args) {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    proc.stdout.on('data', (d) => (stdout += d.toString()));
-    proc.stderr.on('data', (d) => (stderr += d.toString()));
-    proc.on('close', (code) => {
-      if (code === 0) resolve({ stdout, stderr });
-      else reject(new Error(`${cmd} exited ${code}: ${stderr}`));
-    });
-    proc.on('error', reject);
-  });
-}
-
-async function captureScreenshots(binaryPath, driverPath) {
+async function captureScreenshots(binaryPath) {
   // Clean and create current directory
   if (existsSync(CURRENT_DIR)) rmSync(CURRENT_DIR, { recursive: true });
   mkdirSync(CURRENT_DIR, { recursive: true });
@@ -139,11 +94,10 @@ async function captureScreenshots(binaryPath, driverPath) {
   const client = await startWdioSession({
     'wdio:tauriServiceOptions': {
       mode: 'native',
-      driverProvider: 'external',
+      // Embedded provider runs the WebDriver server inside the app via
+      // tauri-plugin-wdio-webdriver — no external tauri-driver needed.
+      driverProvider: 'embedded',
       appBinaryPath: binaryPath,
-      tauriDriverPath: driverPath,
-      autoInstallTauriDriver: false,
-      autoDownloadEdgeDriver: true,
       captureBackendLogs: true,
     },
     'tauri:options': {
@@ -301,7 +255,7 @@ async function main() {
   console.log('VidCompare Screenshot Capture');
   console.log('=============================\n');
 
-  const { binaryPath, driverPath, missing } = await checkPrerequisites();
+  const { binaryPath, missing } = await checkPrerequisites();
 
   if (missing.length > 0) {
     console.log('⚠ Prerequisites not met (exiting 0 for CI compatibility):');
@@ -311,11 +265,10 @@ async function main() {
   }
 
   console.log(`Binary: ${binaryPath}`);
-  console.log(`Driver: ${driverPath}`);
   console.log(`Output: ${CURRENT_DIR}\n`);
 
   try {
-    await captureScreenshots(binaryPath, driverPath);
+    await captureScreenshots(binaryPath);
     console.log('\n✓ All 7 screenshots captured successfully');
   } catch (err) {
     console.error('\n✗ Capture failed:', err.message);

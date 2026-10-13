@@ -89,12 +89,14 @@ npm run e2e
 - Tests: `tests/e2e/app.e2e.ts` (window title skipped, UI assertions only)
 
 ### Native Mode Details
-- Launches compiled `src-tauri/target/release/vidcompare` via tauri-driver
-- Requires: `tauri-driver` on PATH (or `TAURI_DRIVER_PATH`), display server
-- Requires the `tauri-plugin-wdio` Rust crate registered in `src-tauri/src/lib.rs`
-  plus `import '@wdio/tauri-plugin'` in `src/main.ts` (with the `wdio:default`
-  capability) — without it the service cannot execute JS or read window state
-  and every test times out
+- Launches compiled `src-tauri/target/release/vidcompare` via the embedded
+  WebDriver provider (`tauri-plugin-wdio-webdriver`) — no external tauri-driver
+  needed
+- Requires: display server
+- Requires the `tauri-plugin-wdio` and `tauri-plugin-wdio-webdriver` Rust crates
+  registered in `src-tauri/src/lib.rs` plus `import '@wdio/tauri-plugin'` in
+  `src/main.ts` (with the `wdio:default` capability) — without them the service
+  cannot execute JS or read window state and every test times out
 - Linux CI: `xvfb-run -a --server-args="-screen 0 1920x1080x24"` with
   `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1`
   (WebKitGTK ≥2.42 renders a blank webview under Xvfb without them —
@@ -109,15 +111,12 @@ npm run e2e
 # 1. Build Tauri app
 cd src-tauri && cargo build --release
 
-# 2. Install tauri-driver
-cargo install tauri-driver --locked
-
-# 3. Linux: install Tauri deps + xvfb (same set as the CI composite
+# 2. Linux: install Tauri deps + xvfb (same set as the CI composite
 #    action .github/actions/setup-linux-tauri/action.yml)
 sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
-  libayatana-appindicator3-dev librsvg2-dev webkit2gtk-driver xvfb
+  libayatana-appindicator3-dev librsvg2-dev xvfb
 
-# 4. Headless Linux only: force WebKitGTK software rendering, otherwise the
+# 3. Headless Linux only: force WebKitGTK software rendering, otherwise the
 #    webview stays blank under Xvfb (no GPU)
 export WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1
 ```
@@ -247,7 +246,6 @@ Copy-Item tests\screenshots\current\*.png website\static\screenshots\
 
 | Issue | Solution |
 |-------|----------|
-| `tauri-driver not found` | `cargo install tauri-driver --locked` or set `TAURI_DRIVER_PATH` |
 | `No display` (Linux) | Run under `xvfb-run -a --server-args="-screen 0 1920x1080x24"` |
 | Blank/white window under xvfb (native E2E/screenshots) | Set `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1` — WebKitGTK ≥2.42 software rendering on headless CI (tauri-apps/tauri#15936, #9304) |
 | `Binary not found` | `cd src-tauri && cargo build --release` |
