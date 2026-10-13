@@ -88,18 +88,13 @@ jobs:
           workspaces: src-tauri -> target
       - run: npm ci
       - run: npm run build
-      # Nightly builds get a prerelease version (<ver>-nightly.<run_number>)
-      # injected via --config so package.json/tauri.conf.json stay untouched.
+      # Nightly builds get a numeric-only prerelease version injected via
+      # --config so package.json/tauri.conf.json stay untouched (see the
+      # script header for why "-nightly.N" fails the Windows msi target).
       - name: Resolve version
         id: version
         shell: bash
-        run: |
-          base=$(node -p "require('./package.json').version")
-          if [ "${{ inputs.nightly }}" = "true" ]; then
-            echo "version=$base-nightly.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=$base" >> "$GITHUB_OUTPUT"
-          fi
+        run: scripts/resolve-release-version.sh "${{ inputs.nightly }}" "${{ github.run_number }}"
       # Updater manifest signing (minisign keypair): the private key lives in
       # the TAURI_SIGNING_PRIVATE_KEY secret; tauri build emits *.sig files
       # next to the bundles when it is set. Release artifacts themselves stay
@@ -116,46 +111,7 @@ jobs:
       - name: Create portable zip (Windows)
         if: matrix.platform == 'windows'
         shell: pwsh
-        run: |
-          $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
-          $ver = '${{ steps.version.outputs.version }}'
-          $target = '${{ matrix.target }}'
-          $releaseDir = "src-tauri/target/$target/release"
-          $stageName = "VidCompare-$ver-portable-win64"
-          $stage = Join-Path 'dist' $stageName
-          if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
-          New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          $main = @(
-            (Join-Path $releaseDir 'VidCompare.exe'),
-            (Join-Path $releaseDir 'vidcompare.exe')
-          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $main) { throw "main executable not found in $releaseDir" }
-          Copy-Item $main $stage
-          Copy-Item "src-tauri/binaries/video-compare-$target.exe" (Join-Path $stage 'video-compare.exe')
-          $dllDir = 'src-tauri/binaries/dlls'
-          if (Test-Path $dllDir) {
-            Get-ChildItem $dllDir -Filter '*.dll' | Copy-Item -Destination $stage
-          }
-          Copy-Item README.md $stage
-          # License placeholder — the repository has no root LICENSE yet
-          # (project license: GPL-3.0-only; upstream video-compare: GPL-3.0).
-          if (Test-Path LICENSE) {
-            Copy-Item LICENSE $stage
-          } else {
-            Set-Content -Path (Join-Path $stage 'LICENSE.txt') -Value @(
-              'VidCompare is licensed under GPL-3.0-only (https://www.gnu.org/licenses/gpl-3.0.html).',
-              'This bundle contains the video-compare binary by pixop (GPL-3.0),',
-              'https://github.com/pixop/video-compare - see its LICENSE.md and licenses/ directory.',
-              'TODO: replace this placeholder with the repository LICENSE file once added.'
-            )
-          }
-          # Portable marker: settings/profiles/logs are redirected next to the
-          # exe when this file exists (is_portable() in the Rust backend).
-          New-Item -Path (Join-Path $stage 'portable.flag') -ItemType File | Out-Null
-          $zip = Join-Path 'dist' "$stageName.zip"
-          if (Test-Path $zip) { Remove-Item -Force $zip }
-          Compress-Archive -Path $stage -DestinationPath $zip
-          Write-Host "created $zip"
+        run: ./scripts/New-PortableZip.ps1 -Version '${{ steps.version.outputs.version }}' -Target '${{ matrix.target }}'
 
       - uses: actions/upload-artifact@v4
         with:
@@ -209,9 +165,18 @@ jobs:
           git tag nightly "$GITHUB_SHA"
           git push origin nightly --force
 
+      # Generate the updater manifest (latest.json) consumed by the
+      # tauri-plugin-updater endpoint configured in tauri.conf.json
+      # (releases/latest/download/latest.json). Only attached to stable
+      # releases — nightlies are never "Latest", so the endpoint keeps
+      # pointing at the last stable manifest.
+      - name: Generate updater manifest
+        if: ${{ !inputs.nightly }}
+        run: scripts/generate-updater-manifest.sh "${GITHUB_REF_NAME}"
+
       # Attaches installers, the Windows portable zip, the updater .sig files,
-      # and the standalone option profiles + index (all profiles are
-      # OS-independent).
+      # the updater manifest (stable releases only), and the standalone option
+      # profiles + index (all profiles are OS-independent).
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -226,6 +191,7 @@ jobs:
             artifacts/**/*
             public/profiles/*.json
             profiles/profiles-index.json
+            ${{ !inputs.nightly && 'latest.json' || '' }}
 
       # Rebuild the Pages site so download links and the changelog pick up the
       # new release (deferred from M6). Nightlies skip this — the website
