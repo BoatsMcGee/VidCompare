@@ -46,7 +46,6 @@ jobs:
           path: website/static/screenshots
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
-          workflow: e2e.yml
         continue-on-error: true
       - name: Build site
         working-directory: website

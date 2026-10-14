@@ -340,9 +340,29 @@ async function mockIpc(client) {
     };
   });
 
-  // Register mocks via the injected interceptor
-  const settings = await client.tauri.mock('load_settings');
-  await settings.mockResolvedValue({
+  // Register mocks directly via the injected interceptor (client.tauri is
+  // not available on a standalone remote() session — the tauri-service
+  // normally adds it, but we're driving Chrome directly).
+  const mock = (cmd) => ({
+    mockResolvedValue: async (val) => {
+      await client.execute((cmd, val) => {
+        const mockFn = window.__wdio_spy__.fn();
+        mockFn.mockName(`tauri.${cmd}`);
+        mockFn.mockResolvedValue(val);
+        window.__wdio_mocks__[cmd] = mockFn;
+      }, cmd, val);
+    },
+    mockRejectedValue: async (val) => {
+      await client.execute((cmd, val) => {
+        const mockFn = window.__wdio_spy__.fn();
+        mockFn.mockName(`tauri.${cmd}`);
+        mockFn.mockRejectedValue(val);
+        window.__wdio_mocks__[cmd] = mockFn;
+      }, cmd, val);
+    },
+  });
+
+  await mock('load_settings').mockResolvedValue({
     theme: 'system',
     custom_binary_path: null,
     custom_profile_path: null,
@@ -351,16 +371,13 @@ async function mockIpc(client) {
     log_level: 'info',
     portable: false,
   });
-  const saveSettings = await client.tauri.mock('save_settings');
-  await saveSettings.mockResolvedValue(undefined);
-  const binary = await client.tauri.mock('resolve_binary');
-  await binary.mockResolvedValue({
+  await mock('save_settings').mockResolvedValue(undefined);
+  await mock('resolve_binary').mockResolvedValue({
     path: '/usr/bin/video-compare',
     source: 'PATH',
     version: '2025-01-01',
   });
-  const listMediaFiles = await client.tauri.mock('list_media_files');
-  await listMediaFiles.mockResolvedValue([
+  await mock('list_media_files').mockResolvedValue([
     { name: 'take2.mkv', path: 'P:\\videos\\clip\\take2.mkv', size: 208 * 1024 * 1024, mtime: null, ext: 'mkv', is_video: true },
     { name: 'take2-h264.mp4', path: 'P:\\videos\\clip\\take2-h264.mp4', size: 96 * 1024 * 1024, mtime: null, ext: 'mp4', is_video: true },
     { name: 'take2-av1.mkv', path: 'P:\\videos\\clip\\take2-av1.mkv', size: 61 * 1024 * 1024, mtime: null, ext: 'mkv', is_video: true },
@@ -368,12 +385,10 @@ async function mockIpc(client) {
     { name: 'take2.srt', path: 'P:\\videos\\clip\\take2.srt', size: 14 * 1024, mtime: null, ext: 'srt', is_video: false },
     { name: 'notes.txt', path: 'P:\\videos\\clip\\notes.txt', size: 2 * 1024, mtime: null, ext: 'txt', is_video: false },
   ]);
-  const runInfoCommand = await client.tauri.mock('run_info_command');
-  await runInfoCommand.mockResolvedValue(
+  await mock('run_info_command').mockResolvedValue(
     'Available filters:\n  yadif\n  scale\n  crop\n  hstack\n  vstack\n  ...',
   );
-  const describePath = await client.tauri.mock('describe_path');
-  await describePath.mockResolvedValue({ is_dir: false });
+  await mock('describe_path').mockResolvedValue({ is_dir: false });
 }
 
 /** Seed localStorage presets before the app loads (PresetsBar reads on init). */
