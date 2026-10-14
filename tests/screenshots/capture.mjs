@@ -491,6 +491,9 @@ async function showLogPanel(client) {
   // __wdio_emit_tauri_event__ function is only defined inside the IIFE —
   // we need to re-declare it here for the execute() context.
   await client.execute((lines) => {
+    // Ensure the listener registry exists (the interceptor creates it, but
+    // guard against timing issues).
+    if (!window.__wdio_tauri_listeners__) { window.__wdio_tauri_listeners__ = {}; }
     const emitEvent = (eventName, payload, target) => {
       const bucket = window.__wdio_tauri_listeners__[eventName];
       if (!bucket) return;
