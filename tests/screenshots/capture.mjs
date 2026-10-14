@@ -468,10 +468,10 @@ async function populateFilePanels(client) {
   const inputs = await client.$$('.dir-input');
   if (inputs.length >= 2) {
     await inputs[0].setValue('P:\\videos\\clip');
-    await inputs[0].keys('Enter');
+    await client.keys('Enter');
     await client.pause(300);
     await inputs[1].setValue('P:\\videos\\encode-test');
-    await inputs[1].keys('Enter');
+    await client.keys('Enter');
     await client.pause(300);
   }
 }
@@ -487,10 +487,16 @@ async function expandOptionGroups(client) {
 
 async function showLogPanel(client) {
   // Emit fake launch events so the log panel renders with sample output.
-  await client.tauri.emitEvent('launch://stdout', { id: 'shot', line: 'video-compare 2025-01-01' });
-  await client.tauri.emitEvent('launch://stdout', { id: 'shot', line: 'Left:  take2-h264.mp4' });
-  await client.tauri.emitEvent('launch://stdout', { id: 'shot', line: 'Right: take2-av1.mkv' });
-  await client.tauri.emitEvent('launch://stderr', { id: 'shot', line: 'Frame 1200 / 5400' });
+  await client.execute((lines) => {
+    for (const { stream, text } of lines) {
+      window.__wdio_emit_tauri_event__(`launch://${stream}`, { id: 'shot', line: text });
+    }
+  }, [
+    { stream: 'stdout', text: 'video-compare 2025-01-01' },
+    { stream: 'stdout', text: 'Left:  take2-h264.mp4' },
+    { stream: 'stdout', text: 'Right: take2-av1.mkv' },
+    { stream: 'stderr', text: 'Frame 1200 / 5400' },
+  ]);
   await client.pause(300);
 }
 
