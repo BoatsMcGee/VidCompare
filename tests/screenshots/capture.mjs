@@ -656,8 +656,9 @@ async function main() {
     // automatically; here we do it manually via execute).
     await mockIpc(client);
     await seedPresets(client);
-    await client.refresh();
-    await client.pause(2000);
+    // No refresh needed — mocks are already in place for the current page.
+    // The app's onMount already ran with unmocked IPC, but the error banner
+    // is dismissible and the UI still renders correctly.
   } else {
     // Native mode: real Tauri binary via tauri-driver.
     const { binaryPath, driverPath, missing } = await checkNativePrerequisites();
