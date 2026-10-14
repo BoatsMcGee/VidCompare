@@ -374,7 +374,7 @@ async function mockIpc(client) {
   await mock('save_settings').mockResolvedValue(undefined);
   await mock('resolve_binary').mockResolvedValue({
     path: '/usr/bin/video-compare',
-    source: 'PATH',
+    source: 'bundled',
     version: '2025-01-01',
   });
   await mock('list_media_files').mockResolvedValue([
