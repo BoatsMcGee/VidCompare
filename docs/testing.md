@@ -187,17 +187,13 @@ npm run screenshots:compare --threshold=0.02  # Custom threshold (default 1%)
 | Job | Mode | Display | Purpose |
 |-----|------|---------|---------|
 | `e2e-browser` | Browser | ❌ | Fast smoke tests on every push/PR |
-| `e2e-native` | Native | ✅ (Windows) | Full integration tests |
-| `screenshots` | Native | ✅ (Windows) | Capture + regression compare (needs e2e-native) |
-| `screenshots-update` | Native | ✅ (Windows) | **Manual dispatch** to refresh baselines |
 
 **Key CI notes:**
 - `e2e-browser` runs on every push/PR (no display needed)
-- `e2e-native` + `screenshots` run on `windows-latest` — WebKitGTK under Xvfb
-  on Linux fails to initialize the webview silently, so native tests use
-  Windows WebView2 instead
-- `screenshots-update` is `workflow_dispatch` only — run manually when design changes
-- Artifacts uploaded: `screenshots-current`, `screenshots-diff` (on failure), `screenshots-baseline` (on update)
+- Native E2E and screenshot jobs were removed because WebKitGTK under Xvfb
+  on Linux fails to initialize the webview silently, and WebView2 on Windows
+  CI fails to create a WebDriver session. Browser mode covers the UI behavior
+  with mocked IPC and is the reliable smoke tier.
 
 ---
 
@@ -226,6 +222,10 @@ npm run e2e
 # Linux (headless):
 xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run e2e
 ```
+
+> **Note:** Native E2E is not currently run in CI due to WebKitGTK/Xvfb issues
+> on Linux and WebView2 session creation failures on Windows. The browser-mode
+> E2E suite (`E2E_MODE=browser`) is the CI smoke tier.
 
 ### Screenshots Locally
 ```bash
@@ -257,6 +257,7 @@ Copy-Item tests\screenshots\current\*.png website\static\screenshots\
 | Screenshot mismatch | Check `tests/screenshots/diff/*.png`; run `--update` if intentional |
 | Coverage below threshold | Add tests for uncovered lines/branches/functions |
 | `svelte-check` errors | Fix TypeScript/Svelte issues in `src/` |
+| `DevToolsActivePort file doesn't exist` (Windows) | WebView2 runtime is missing or the app crashed before creating a window. Install WebView2 Runtime and verify the app starts manually. |
 
 ---
 
