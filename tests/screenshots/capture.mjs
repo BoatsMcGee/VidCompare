@@ -389,6 +389,9 @@ async function mockIpc(client) {
     'Available filters:\n  yadif\n  scale\n  crop\n  hstack\n  vstack\n  ...',
   );
   await mock('describe_path').mockResolvedValue({ is_dir: false });
+  await mock('app_info').mockResolvedValue({ version: '0.1.0', portable: false, os: 'linux', arch: 'x86_64' });
+  await mock('list_profiles').mockResolvedValue([]);
+  await mock('fetch_profiles_index').mockResolvedValue({ profiles: [] });
 }
 
 /** Seed localStorage presets before the app loads (PresetsBar reads on init). */
