@@ -25,7 +25,23 @@ export const shots: Shot[] = [
   { file: 'find-helper-dialog-light.png', caption: 'Find-helper dialog for custom video-compare binaries' },
   { file: 'find-helper-dialog-dark.png', caption: 'Find-helper dialog for custom video-compare binaries' },
   { file: 'compare-page-light.png', caption: 'Compare page with embedded video-compare surface' },
-  { file: 'compare-page-dark.png', caption: 'Compare page with embedded video-compare surface' }
+  { file: 'compare-page-dark.png', caption: 'Compare page with embedded video-compare surface' },
+  { file: 'options-quick-light.png', caption: 'Quick options group' },
+  { file: 'options-quick-dark.png', caption: 'Quick options group' },
+  { file: 'options-display-light.png', caption: 'Display options group' },
+  { file: 'options-display-dark.png', caption: 'Display options group' },
+  { file: 'options-playback-light.png', caption: 'Playback options group' },
+  { file: 'options-playback-dark.png', caption: 'Playback options group' },
+  { file: 'options-color-light.png', caption: 'Color options group' },
+  { file: 'options-color-dark.png', caption: 'Color options group' },
+  { file: 'options-filters-light.png', caption: 'Filters options group' },
+  { file: 'options-filters-dark.png', caption: 'Filters options group' },
+  { file: 'options-io-light.png', caption: 'Inputs & decoding options group' },
+  { file: 'options-io-dark.png', caption: 'Inputs & decoding options group' },
+  { file: 'options-scopes-light.png', caption: 'Scopes options group' },
+  { file: 'options-scopes-dark.png', caption: 'Scopes options group' },
+  { file: 'options-advanced-light.png', caption: 'Advanced options group' },
+  { file: 'options-advanced-dark.png', caption: 'Advanced options group' }
 ];
 
 export function shotUrl(file: string): string {

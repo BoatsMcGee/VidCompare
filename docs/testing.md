@@ -13,7 +13,7 @@ This document describes the complete testing strategy for VidCompare, covering a
 | **Type Checking** | svelte-check + tsc | `npm run check` | Zero errors |
 | **E2E (Browser)** | WebdriverIO + Chrome (mocked IPC) | `E2E_MODE=browser npm run e2e` | Smoke tests, no display needed |
 | **E2E (Native)** | WebdriverIO + tauri-driver | `npm run e2e` | Real Tauri binary, requires display |
-| **Screenshots** | WebdriverIO + Chrome (browser mode) or tauri-driver (native) | `npm run screenshots` / `npm run screenshots:compare` | 7 views at 2× DPI, regression threshold 1% |
+| **Screenshots** | WebdriverIO + Chrome (browser mode) or tauri-driver (native) | `npm run screenshots` / `npm run screenshots:compare` | 30 views at 2× DPI, regression threshold 1% |
 
 ---
 
@@ -142,27 +142,40 @@ SCREENSHOT_MODE=native npm run screenshots
 **What it does (browser mode):**
 1. Starts the Vite dev server on port 1420
 2. Launches headless Chrome via WebdriverIO
-3. Mocks the Tauri IPC surface (`load_settings`, `resolve_binary`, `list_media_files`, etc.)
-4. Seeds localStorage presets for the presets bar
+3. Registers the Tauri IPC interceptor + mocks as a WebDriver BiDi **preload
+   script** (`script.addPreloadScript`) before the first navigation — it runs
+   after document creation but before any page script, so the app's `onMount`
+   startup IPC calls (`load_settings`, `resolve_binary`, …) hit mocks instead
+   of failing and rendering the error banner. Non-BiDi sessions fall back to
+   post-load injection via `execute()` (the banner may flash there).
+4. Seeds localStorage presets in the same preload (PresetsBar reads on init)
 5. Sets viewport to 1920×1080 (2× DPI base 960×540)
 6. Generates the mandelbrot test image on-the-fly with FFmpeg (`mandelbrot=size=1280x720:rate=1`) into `tests/screenshots/current/mandelbrot-temp.png` — used as the stand-in for the embedded video-compare window on the compare page. Not committed to source control; requires `ffmpeg` on PATH (pre-installed on `ubuntu-latest` CI runners).
-7. Captures 7 screenshots matching website manifest
+7. Captures 30 screenshots matching website manifest (15 subjects × light/dark)
 
 **What it does (native mode):**
 1. Checks prerequisites (binary, tauri-driver, display) — exits 0 with message if missing (CI-friendly)
 2. Launches Tauri app via WebdriverIO + tauri-driver
 3. Sets window to 1920×1080 (2× DPI base 960×540)
-4. Captures the same 7 screenshots
+4. Captures the same 30 screenshots
 
 | File | State |
 |------|-------|
-| `main-window-light.png` | Main window, light theme |
-| `main-window-dark.png` | Main window, dark theme |
-| `file-panels.png` | File panels with fixture media |
-| `options-groups.png` | Options groups expanded, L/R columns |
-| `log-panel.png` | Output panel with sample sidecar output |
-| `presets-bar.png` | Presets bar |
-| `find-helper-dialog.png` | Find-helper dialog for custom binary |
+| `main-window-light.png` / `main-window-dark.png` | Main window |
+| `file-panels-light.png` / `file-panels-dark.png` | File panels with fixture media |
+| `options-groups-light.png` / `options-groups-dark.png` | Options groups expanded, L/R columns |
+| `log-panel-light.png` / `log-panel-dark.png` | Output panel with sample sidecar output |
+| `presets-bar-light.png` / `presets-bar-dark.png` | Presets bar |
+| `find-helper-dialog-light.png` / `find-helper-dialog-dark.png` | Find-helper dialog for custom binary |
+| `compare-page-light.png` / `compare-page-dark.png` | Compare page with embedded video-compare surface |
+| `options-quick-light.png` / `options-quick-dark.png` | Quick options group |
+| `options-display-light.png` / `options-display-dark.png` | Display options group |
+| `options-playback-light.png` / `options-playback-dark.png` | Playback options group |
+| `options-color-light.png` / `options-color-dark.png` | Color options group |
+| `options-filters-light.png` / `options-filters-dark.png` | Filters options group |
+| `options-io-light.png` / `options-io-dark.png` | Inputs & decoding options group |
+| `options-scopes-light.png` / `options-scopes-dark.png` | Scopes options group |
+| `options-advanced-light.png` / `options-advanced-dark.png` | Advanced options group |
 
 **Output:** `tests/screenshots/current/*.png`
 

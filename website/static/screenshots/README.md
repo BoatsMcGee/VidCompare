@@ -6,8 +6,8 @@ directory exists.
 
 ## How it works
 
-1. The `screenshots` job in `.github/workflows/e2e.yml` captures 14 PNGs
-   (7 subjects × light/dark themes, 2× DPI) in browser mode and uploads
+1. The `screenshots` job in `.github/workflows/e2e.yml` captures 30 PNGs
+   (15 subjects × light/dark themes, 2× DPI) in browser mode and uploads
    them as a workflow artifact.
 2. The `website.yml` workflow triggers on `workflow_run` of `e2e.yml` (or on
    `workflow_dispatch`), downloads the artifact into this folder, builds the
@@ -26,6 +26,14 @@ CI drops PNG captures (2× DPI) here using exactly these names:
 | `presets-bar-light.png` / `presets-bar-dark.png` | Presets bar |
 | `find-helper-dialog-light.png` / `find-helper-dialog-dark.png` | Find-helper dialog for a custom binary |
 | `compare-page-light.png` / `compare-page-dark.png` | Compare page with embedded video-compare surface |
+| `options-quick-light.png` / `options-quick-dark.png` | Quick options group |
+| `options-display-light.png` / `options-display-dark.png` | Display options group |
+| `options-playback-light.png` / `options-playback-dark.png` | Playback options group |
+| `options-color-light.png` / `options-color-dark.png` | Color options group |
+| `options-filters-light.png` / `options-filters-dark.png` | Filters options group |
+| `options-io-light.png` / `options-io-dark.png` | Inputs & decoding options group |
+| `options-scopes-light.png` / `options-scopes-dark.png` | Scopes options group |
+| `options-advanced-light.png` / `options-advanced-dark.png` | Advanced options group |
 
 Each subject has a `-light` and a `-dark` variant; the site's Screenshot
 component swaps the suffix to match the visitor's active theme.

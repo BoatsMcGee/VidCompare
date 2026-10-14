@@ -13,7 +13,7 @@
  *   tauri-driver on PATH and a display server. Used for local captures that
  *   must match the real app chrome exactly.
  *
- * Both modes capture the same 14 screenshots (7 subjects × light/dark) at
+ * Both modes capture the same 30 screenshots (15 subjects × light/dark) at
  * 2× DPI matching the exact filenames expected by the website
  * (website/static/screenshots/README.md).
  *
@@ -21,16 +21,22 @@
  *   node tests/screenshots/capture.mjs [--help]
  *   SCREENSHOT_MODE=native node tests/screenshots/capture.mjs
  *
- * Output: tests/screenshots/current/*.png (14 files)
+ * Output: tests/screenshots/current/*.png (30 files)
  */
 
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { remote } from 'webdriverio';
 import { startWdioSession, cleanupWdioSession } from '@wdio/tauri-service';
 import { createIpcInterceptor } from '@wdio/native-spy/interceptor';
+
+/** Browser-mode IPC interceptor, straight from @wdio/native-spy — the same
+ * script the tauri-service injects in its browser mode. It sets up
+ * window.__wdio_spy__ / __wdio_mocks__ and patches
+ * window.__TAURI_INTERNALS__.invoke to route through the mock store. */
+const INTERCEPTOR_SCRIPT = createIpcInterceptor('tauri').buildBrowserIpcInjectionScript();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -82,7 +88,7 @@ function printHelp() {
 VidCompare Screenshot Capture
 =============================
 
-Captures 14 screenshots (7 subjects × light/dark) at 2× DPI for the website gallery.
+Captures 30 screenshots (15 subjects × light/dark) at 2× DPI for the website gallery.
 
 Modes (SCREENSHOT_MODE env var):
   browser (default)  Headless Chrome + Vite dev server + mocked IPC.
@@ -96,7 +102,7 @@ Usage:
   node tests/screenshots/capture.mjs [--help]
 
 Output:
-  tests/screenshots/current/*.png (14 files matching website manifest)
+  tests/screenshots/current/*.png (30 files matching website manifest)
 `);
 }
 
@@ -159,235 +165,13 @@ async function checkNativePrerequisites() {
   return { binaryPath, driverPath, missing };
 }
 
-/** Mock the IPC surface the app touches during startup and per-shot setup. */
-async function mockIpc(client) {
-  // Inject the browser-mode IPC interceptor (same script the tauri-service
-  // uses in browser mode). This patches window.__TAURI_INTERNALS__.invoke
-  // to route through window.__wdio_mocks__.
-  await client.execute(() => {
-    if (!window.__wdio_mocks__) {
-      // Minimal mock store setup (mirrors @wdio/native-spy)
-      window.__wdio_call_id__ = 0;
-      window.__wdio_spy__ = {
-        fn: () => {
-          const calls = [];
-          const results = [];
-          const invocationCallOrder = [];
-          let _implQueue = [];
-          let _defaultImpl;
-          let _defaultReturnValue = { __wdioType: 'not-set' };
-          let _defaultResolvedValue = { __wdioType: 'not-set' };
-          let _defaultRejectedValue = { __wdioType: 'not-set' };
-          let _returnThis = false;
-          const NOT_SET = { __wdioType: 'not-set' };
-          const mockFn = function(...args) {
-            const id = ++window.__wdio_call_id__;
-            calls.push(args);
-            invocationCallOrder.push(id);
-            let rv;
-            if (_implQueue.length > 0) {
-              const impl = _implQueue.shift();
-              if (impl && impl.__wdioType === 'resolve') {
-                rv = impl.__wdioVal;
-                results.push({ type: 'return', value: rv });
-                return Promise.resolve(rv);
-              } else if (impl && impl.__wdioType === 'reject') {
-                rv = impl.__wdioVal;
-                results.push({ type: 'throw', value: rv });
-                return Promise.reject(rv);
-              } else {
-                rv = impl.apply(this, args);
-                results.push({ type: 'return', value: rv });
-                return rv;
-              }
-            }
-            if (_defaultImpl) {
-              rv = _defaultImpl.apply(this, args);
-              results.push({ type: 'return', value: rv });
-              return rv;
-            }
-            if (_defaultRejectedValue !== NOT_SET) {
-              rv = _defaultRejectedValue;
-              results.push({ type: 'throw', value: rv });
-              return Promise.reject(rv);
-            }
-            if (_defaultResolvedValue !== NOT_SET) {
-              rv = _defaultResolvedValue;
-              results.push({ type: 'return', value: rv });
-              return Promise.resolve(rv);
-            }
-            if (_returnThis) {
-              results.push({ type: 'return', value: this });
-              return this;
-            }
-            if (_defaultReturnValue !== NOT_SET) {
-              rv = _defaultReturnValue;
-              results.push({ type: 'return', value: rv });
-              return rv;
-            }
-            results.push({ type: 'return', value: undefined });
-            return undefined;
-          };
-          mockFn._isMockFunction = true;
-          const snapshot = { calls, results, invocationCallOrder };
-          Object.defineProperty(mockFn, 'mock', { get: () => snapshot, enumerable: true, configurable: true });
-          mockFn.mockName = (n) => { mockFn._name = n; return mockFn; };
-          mockFn.getMockName = () => mockFn._name;
-          mockFn.getMockImplementation = () => _defaultImpl;
-          mockFn.mockImplementation = (fn) => { _defaultImpl = fn; _returnThis = false; return mockFn; };
-          mockFn.mockImplementationOnce = (fn) => { _implQueue.push(fn); return mockFn; };
-          mockFn.mockReturnValue = (val) => { _defaultImpl = undefined; _defaultReturnValue = val; _defaultResolvedValue = NOT_SET; _defaultRejectedValue = NOT_SET; _returnThis = false; return mockFn; };
-          mockFn.mockReturnValueOnce = (val) => { _implQueue.push(() => val); return mockFn; };
-          mockFn.mockResolvedValue = (val) => { _defaultImpl = undefined; _defaultResolvedValue = val; _defaultReturnValue = NOT_SET; _defaultRejectedValue = NOT_SET; _returnThis = false; return mockFn; };
-          mockFn.mockResolvedValueOnce = (val) => { _implQueue.push({ __wdioType: 'resolve', __wdioVal: val }); return mockFn; };
-          mockFn.mockRejectedValue = (val) => { _defaultImpl = undefined; _defaultRejectedValue = val; _defaultReturnValue = NOT_SET; _defaultResolvedValue = NOT_SET; _returnThis = false; return mockFn; };
-          mockFn.mockRejectedValueOnce = (val) => { _implQueue.push({ __wdioType: 'reject', __wdioVal: val }); return mockFn; };
-          mockFn.mockClear = () => { calls.length = 0; results.length = 0; invocationCallOrder.length = 0; return mockFn; };
-          mockFn.mockReset = () => { mockFn.mockClear(); _implQueue = []; _defaultImpl = undefined; _defaultReturnValue = NOT_SET; _defaultResolvedValue = NOT_SET; _defaultRejectedValue = NOT_SET; _returnThis = false; return mockFn; };
-          mockFn.mockReturnThis = () => { _returnThis = true; _defaultReturnValue = NOT_SET; _defaultResolvedValue = NOT_SET; _defaultRejectedValue = NOT_SET; return mockFn; };
-          mockFn.withImplementation = (fn, callback) => {
-            const prevImpl = _defaultImpl, prevQueue = _implQueue.slice(), prevReturnThis = _returnThis;
-            _defaultImpl = fn; _implQueue = []; _returnThis = false;
-            const result = callback();
-            if (result && typeof result.then === 'function') {
-              return result.then((r) => { _defaultImpl = prevImpl; _implQueue = prevQueue; _returnThis = prevReturnThis; return r; }, (e) => { _defaultImpl = prevImpl; _implQueue = prevQueue; _returnThis = prevReturnThis; throw e; });
-            }
-            _defaultImpl = prevImpl; _implQueue = prevQueue; _returnThis = prevReturnThis;
-            return result;
-          };
-          return mockFn;
-        }
-      };
-      window.__wdio_mocks__ = {};
-    }
-    if (!window.__TAURI_INTERNALS__) { window.__TAURI_INTERNALS__ = {}; }
-    if (!window.__TAURI_INTERNALS__.callbacks) {
-      const callbacks = new Map();
-      let uid = 0;
-      window.__TAURI_INTERNALS__.callbacks = callbacks;
-      window.__TAURI_INTERNALS__.transformCallback = (cb, once) => {
-        const id = ++uid;
-        callbacks.set(id, (data) => {
-          if (once) callbacks.delete(id);
-          return cb && cb(data);
-        });
-        return id;
-      };
-      window.__TAURI_INTERNALS__.runCallback = (id, data) => {
-        const cb = callbacks.get(id);
-        if (cb) cb(data);
-      };
-      window.__TAURI_INTERNALS__.unregisterCallback = (id) => {
-        callbacks.delete(id);
-      };
-    }
-    if (!window.__wdio_tauri_listeners__) { window.__wdio_tauri_listeners__ = {}; }
-    if (typeof window.__wdio_event_id_seq__ !== 'number') { window.__wdio_event_id_seq__ = 0; }
-    if (!window.__TAURI_EVENT_PLUGIN_INTERNALS__) {
-      window.__TAURI_EVENT_PLUGIN_INTERNALS__ = {
-        unregisterListener: (event, eventId) => {
-          const bucket = window.__wdio_tauri_listeners__[event];
-          if (bucket) delete bucket[eventId];
-        }
-      };
-    }
-    const normalizeTarget = (t) => {
-      if (t === undefined || t === null) return { kind: 'Any' };
-      if (typeof t === 'string') return { kind: 'AnyLabel', label: t };
-      return t;
-    };
-    const targetMatches = (subscriberTarget, emitTarget) => {
-      const s = normalizeTarget(subscriberTarget);
-      const e = normalizeTarget(emitTarget);
-      if (s.kind === 'Any' || e.kind === 'Any') return true;
-      if (s.kind === 'App' || e.kind === 'App') return s.kind === e.kind;
-      return s.label === e.label;
-    };
-    window.__wdio_emit_tauri_event__ = (eventName, payload, target) => {
-      const bucket = window.__wdio_tauri_listeners__[eventName];
-      if (!bucket) return;
-      const ids = Object.keys(bucket);
-      for (let i = 0; i < ids.length; i++) {
-        const entry = bucket[ids[i]];
-        if (!entry) continue;
-        if (target !== undefined && !targetMatches(entry.target, target)) continue;
-        window.__TAURI_INTERNALS__.runCallback(entry.handlerId, {
-          event: eventName,
-          id: Number(ids[i]),
-          payload
-        });
-      }
-    };
-    const handlePluginEvent = (cmd, args) => {
-      if (cmd === 'plugin:event|listen') {
-        const eventId = ++window.__wdio_event_id_seq__;
-        const ev = args && args.event;
-        if (!window.__wdio_tauri_listeners__[ev]) window.__wdio_tauri_listeners__[ev] = {};
-        window.__wdio_tauri_listeners__[ev][eventId] = {
-          handlerId: args && args.handler,
-          target: args && args.target
-        };
-        return Promise.resolve(eventId);
-      }
-      if (cmd === 'plugin:event|unlisten') {
-        const ev2 = args && args.event;
-        const id = args && args.eventId;
-        const bucket = window.__wdio_tauri_listeners__[ev2];
-        if (bucket) delete bucket[id];
-        return Promise.resolve();
-      }
-      if (cmd === 'plugin:event|emit') {
-        window.__wdio_emit_tauri_event__(args && args.event, args && args.payload);
-        return Promise.resolve();
-      }
-      if (cmd === 'plugin:event|emit_to') {
-        window.__wdio_emit_tauri_event__(args && args.event, args && args.payload, args && args.target);
-        return Promise.resolve();
-      }
-      return Promise.resolve();
-    };
-    window.__TAURI_INTERNALS__.invoke = (cmd, args, options) => {
-      const mock = window.__wdio_mocks__ && window.__wdio_mocks__[cmd];
-      if (mock && typeof mock === 'function') {
-        const mockResult = Promise.resolve().then(() => mock(args, options));
-        if (cmd && cmd.indexOf('plugin:event|') === 0) {
-          return mockResult.then(() => handlePluginEvent(cmd, args));
-        }
-        return mockResult;
-      }
-      if (cmd && cmd.indexOf('plugin:event|') === 0) {
-        return handlePluginEvent(cmd, args);
-      }
-      if (cmd && cmd.indexOf('plugin:') === 0) {
-        return Promise.resolve();
-      }
-      return Promise.reject(new Error('unmocked Tauri command in browser mode: ' + cmd));
-    };
-  });
-
-  // Register mocks directly via the injected interceptor (client.tauri is
-  // not available on a standalone remote() session — the tauri-service
-  // normally adds it, but we're driving Chrome directly).
-  const mock = (cmd) => ({
-    mockResolvedValue: async (val) => {
-      await client.execute((cmd, val) => {
-        const mockFn = window.__wdio_spy__.fn();
-        mockFn.mockName(`tauri.${cmd}`);
-        mockFn.mockResolvedValue(val);
-        window.__wdio_mocks__[cmd] = mockFn;
-      }, cmd, val);
-    },
-    mockRejectedValue: async (val) => {
-      await client.execute((cmd, val) => {
-        const mockFn = window.__wdio_spy__.fn();
-        mockFn.mockName(`tauri.${cmd}`);
-        mockFn.mockRejectedValue(val);
-        window.__wdio_mocks__[cmd] = mockFn;
-      }, cmd, val);
-    },
-  });
-
-  await mock('load_settings').mockResolvedValue({
+/**
+ * Mocked IPC responses for browser mode. Plain data so it can be serialized
+ * into the preload script (which runs before any page script — including the
+ * app's onMount) and reused by the classic post-load fallback.
+ */
+const MOCK_VALUES = {
+  load_settings: {
     theme: 'system',
     custom_binary_path: null,
     custom_profile_path: null,
@@ -395,65 +179,120 @@ async function mockIpc(client) {
     recent_folders: [],
     log_level: 'info',
     portable: false,
-  });
-  await mock('save_settings').mockResolvedValue(undefined);
-  await mock('resolve_binary').mockResolvedValue({
+  },
+  resolve_binary: {
     path: '/usr/bin/video-compare',
     source: 'bundled',
-    version: '2025-01-01',
-  });
-  await mock('list_media_files').mockResolvedValue([
+    // Must match the embedded profile's upstream version, otherwise the
+    // version-mismatch warning banner renders in every screenshot.
+    version: '20261004',
+  },
+  list_media_files: [
     { name: 'take2.mkv', path: 'P:\\videos\\clip\\take2.mkv', size: 208 * 1024 * 1024, mtime: null, ext: 'mkv', is_video: true },
     { name: 'take2-h264.mp4', path: 'P:\\videos\\clip\\take2-h264.mp4', size: 96 * 1024 * 1024, mtime: null, ext: 'mp4', is_video: true },
     { name: 'take2-av1.mkv', path: 'P:\\videos\\clip\\take2-av1.mkv', size: 61 * 1024 * 1024, mtime: null, ext: 'mkv', is_video: true },
     { name: 'take2-prores.mov', path: 'P:\\videos\\clip\\take2-prores.mov', size: 1240 * 1024 * 1024, mtime: null, ext: 'mov', is_video: true },
     { name: 'take2.srt', path: 'P:\\videos\\clip\\take2.srt', size: 14 * 1024, mtime: null, ext: 'srt', is_video: false },
     { name: 'notes.txt', path: 'P:\\videos\\clip\\notes.txt', size: 2 * 1024, mtime: null, ext: 'txt', is_video: false },
-  ]);
-  await mock('run_info_command').mockResolvedValue(
-    'Available filters:\n  yadif\n  scale\n  crop\n  hstack\n  vstack\n  ...',
-  );
-  await mock('describe_path').mockResolvedValue({ is_dir: false });
-  await mock('app_info').mockResolvedValue({ version: '0.1.0', portable: false, os: 'linux', arch: 'x86_64' });
-  await mock('list_profiles').mockResolvedValue([]);
-  await mock('fetch_profiles_index').mockResolvedValue({ profiles: [] });
+  ],
+  run_info_command: 'Available filters:\n  yadif\n  scale\n  crop\n  hstack\n  vstack\n  ...',
+  describe_path: { is_dir: false },
+  app_info: { version: '0.1.0', portable: false, os: 'linux', arch: 'x86_64' },
+  list_profiles: [],
+  fetch_profiles_index: { profiles: [] },
+};
+
+// JSON.stringify drops undefined-valued keys, so commands whose mock result
+// is `undefined` (void commands) are listed explicitly.
+const VOID_MOCKS = [
+  'save_settings',
   // Compare page: pretend an embedded video-compare window launched so the
   // embed surface renders; the surface content is replaced with a fixture
   // image by the open-compare setup.
-  await mock('embed_launch').mockResolvedValue({
-    id: 'shot',
-    started_at: Date.now(),
-    pid: 1234,
-    embedded: true,
-    reason: null,
-    aspect: 16 / 9,
-  });
-  await mock('embed_set_rect').mockResolvedValue(undefined);
-  await mock('embed_release').mockResolvedValue(undefined);
-  await mock('kill').mockResolvedValue(undefined);
+  'embed_launch',
+  'embed_set_rect',
+  'embed_release',
+  'kill',
+];
+
+/** localStorage presets seeded before app load (PresetsBar reads on init). */
+const PRESETS_SEED = [
+  {
+    name: 'H264 vs AV1',
+    options: { 'display-mode': { value: 'split' } },
+    left: { path: 'P:\\videos\\clip\\take2-h264.mp4' },
+    rights: [{ path: 'P:\\videos\\encode-test\\take2-av1.mkv' }],
+    updatedAt: 0,
+  },
+  {
+    name: 'ProRes master',
+    options: {},
+    left: { path: 'P:\\videos\\clip\\take2-prores.mov' },
+    rights: [],
+    updatedAt: 0,
+  },
+];
+
+/**
+ * Build the browser-side preload script: the @wdio/native-spy IPC
+ * interceptor plus registration of every mock and the localStorage preset
+ * seed. Registered as a WebDriver BiDi preload script it runs after document
+ * creation but before any page script — so the app's onMount IPC calls
+ * (load_settings, resolve_binary, …) hit mocks instead of failing and
+ * rendering the error banner.
+ */
+function buildPreloadScript() {
+  return `(function() {
+${INTERCEPTOR_SCRIPT}
+  var mocks = ${JSON.stringify(MOCK_VALUES)};
+  for (var cmd in mocks) {
+    var mockFn = window.__wdio_spy__.fn();
+    mockFn.mockName('tauri.' + cmd);
+    mockFn.mockResolvedValue(mocks[cmd]);
+    window.__wdio_mocks__[cmd] = mockFn;
+  }
+  var voidMocks = ${JSON.stringify(VOID_MOCKS)};
+  for (var i = 0; i < voidMocks.length; i++) {
+    var voidFn = window.__wdio_spy__.fn();
+    voidFn.mockName('tauri.' + voidMocks[i]);
+    voidFn.mockResolvedValue(undefined);
+    window.__wdio_mocks__[voidMocks[i]] = voidFn;
+  }
+  try {
+    localStorage.setItem('vidcompare.presets.v1', ${JSON.stringify(JSON.stringify(PRESETS_SEED))});
+  } catch (e) { /* storage unavailable — presets bar renders empty */ }
+})()`;
 }
 
-/** Seed localStorage presets before the app loads (PresetsBar reads on init). */
-async function seedPresets(client) {
-  await client.execute(() => {
-    const presets = [
-      {
-        name: 'H264 vs AV1',
-        options: { 'display-mode': { value: 'split' } },
-        left: { path: 'P:\\videos\\clip\\take2-h264.mp4' },
-        rights: [{ path: 'P:\\videos\\encode-test\\take2-av1.mkv' }],
-        updatedAt: Date.now(),
-      },
-      {
-        name: 'ProRes master',
-        options: {},
-        left: { path: 'P:\\videos\\clip\\take2-prores.mov' },
-        rights: [],
-        updatedAt: Date.now(),
-      },
-    ];
-    localStorage.setItem('vidcompare.presets.v1', JSON.stringify(presets));
-  });
+/**
+ * Register the preload script via WebDriver BiDi so it runs before any page
+ * script on every navigation. Mirrors @wdio/tauri-service's
+ * registerBidiPreload: no-ops (returns false) on a non-BiDi session, and
+ * swallows registration failures so the classic post-load fallback in
+ * mockIpc() stays available. Returns true only when the preload is active.
+ */
+async function registerBidiPreload(client) {
+  if (!client.isBidi) return false;
+  try {
+    await client.scriptAddPreloadScript({
+      functionDeclaration: `() => {\n${buildPreloadScript()}\n}`,
+    });
+    console.log('BiDi preload registered (IPC mocked before page load)');
+    return true;
+  } catch (err) {
+    console.warn(`BiDi preload registration failed — falling back to post-load injection: ${err.message}`);
+    return false;
+  }
+}
+
+/**
+ * Classic fallback for non-BiDi sessions: inject the interceptor and mocks
+ * via execute() after page load. The app's onMount has already run unmocked
+ * at that point, so the error banner may flash — acceptable only as a
+ * fallback; the preload path above is the norm on Chrome.
+ */
+async function mockIpc(client) {
+  await client.execute(buildPreloadScript());
 }
 
 async function applyTheme(client, theme) {
@@ -470,6 +309,18 @@ async function applyTheme(client, theme) {
       await themeBtn.click();
       await client.pause(200);
     }
+  }
+}
+
+/** Close any modal dialog (e.g. find-helper) left open by a previous shot.
+ * Clicks the overlay programmatically — its onclick closes the dialog, and
+ * a synthetic Escape wouldn't reach the overlay's keydown handler when focus
+ * sits on the inner dialog (which stops propagation). */
+async function dismissDialogs(client) {
+  const overlay = await client.$('.dialog-overlay');
+  if (await overlay.isExisting()) {
+    await client.execute(() => document.querySelector('.dialog-overlay')?.click());
+    await client.pause(200);
   }
 }
 
@@ -536,11 +387,19 @@ async function expandOptionGroups(client) {
 
 async function captureOptionGroup(client, groupId) {
   // Click the tab whose label maps to the requested group id, then wait for
-  // it to become active before the screenshot is taken.
+  // it to become active before the screenshot is taken. Tab labels come from
+  // the profile (e.g. io → "Inputs & Decoding"), so match via the profile's
+  // group list rather than assuming label == id.
+  const profile = JSON.parse(readFileSync(join(ROOT, 'public', 'profiles', 'video-compare-latest.json'), 'utf8'));
+  const group = profile.groups.find((g) => g.id === groupId);
+  if (!group) {
+    throw new Error(`Option group "${groupId}" not found in embedded profile`);
+  }
+  const wanted = group.label.trim().toLowerCase();
   const tabs = await client.$$('.group-tabs button');
   for (const tab of tabs) {
     const label = (await tab.getText()).trim().toLowerCase();
-    if (label === groupId.toLowerCase()) {
+    if (label === wanted) {
       await tab.click();
       await client.waitUntil(
         async () => (await tab.getAttribute('class'))?.includes('active'),
@@ -686,6 +545,9 @@ async function captureScreenshots(client) {
   for (const shot of SHOTS) {
     console.log(`Capturing ${shot.name}...`);
 
+    // Close any dialog a previous shot left open (its overlay intercepts clicks)
+    await dismissDialogs(client);
+
     // Apply theme (all shots specify an explicit light/dark variant)
     await applyTheme(client, shot.theme);
     await client.pause(500); // Wait for theme transition
@@ -766,17 +628,21 @@ async function main() {
       logLevel: 'warn',
     });
 
+    // Register the IPC interceptor + mocks as a BiDi preload BEFORE the
+    // first navigation, so the app's onMount startup IPC calls hit mocks
+    // (otherwise the error banner renders in every screenshot). On a
+    // non-BiDi session this returns false and we fall back to post-load
+    // injection after client.url().
+    const preloadActive = await registerBidiPreload(client);
+
     // Navigate to the dev server
     await client.url('http://localhost:1420');
     await client.pause(2000);
 
-    // Mock IPC via the injected interceptor (browser-mode service does this
-    // automatically; here we do it manually via execute).
-    await mockIpc(client);
-    await seedPresets(client);
-    // No refresh needed — mocks are already in place for the current page.
-    // The app's onMount already ran with unmocked IPC, but the error banner
-    // is dismissible and the UI still renders correctly.
+    if (!preloadActive) {
+      // Classic fallback: mocks land after onMount already ran unmocked.
+      await mockIpc(client);
+    }
   } else {
     // Native mode: real Tauri binary via tauri-driver.
     const { binaryPath, driverPath, missing } = await checkNativePrerequisites();
@@ -811,7 +677,7 @@ async function main() {
 
   try {
     await captureScreenshots(client);
-    console.log('\n✓ All 14 screenshots captured successfully');
+    console.log(`\n✓ All ${SHOTS.length} screenshots captured successfully`);
   } catch (err) {
     console.error('\n✗ Capture failed:', err.message);
     process.exit(1);
