@@ -139,7 +139,7 @@
   }
 
   function listBackgroundClick(e: MouseEvent) {
-    if ((e.target as HTMLElement).closest('.file-entry')) return;
+    if ((e.target as HTMLElement).closest('.file-entry, .empty')) return;
     void browse();
   }
 

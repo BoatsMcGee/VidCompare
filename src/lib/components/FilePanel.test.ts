@@ -156,7 +156,14 @@ describe('FilePanel', () => {
     openDialog.mockResolvedValue(undefined);
     render(FilePanel, { props: { side: 'left' } });
     await fireEvent.click(screen.getByText('a.mp4').closest('.file-list') as HTMLElement);
-    expect(openDialog).toHaveBeenCalled();
+    expect(openDialog).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking the empty state opens exactly one browse dialog', async () => {
+    openDialog.mockResolvedValue(undefined);
+    render(FilePanel, { props: { side: 'left' } });
+    await fireEvent.click(screen.getByText('Click to browse, or drop a file or folder here.'));
+    expect(openDialog).toHaveBeenCalledTimes(1);
   });
 
   it('committing a typed folder path reloads the listing', async () => {
