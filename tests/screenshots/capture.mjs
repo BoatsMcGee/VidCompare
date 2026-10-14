@@ -2,18 +2,23 @@
 /**
  * VidCompare screenshot capture script.
  *
- * Uses WebdriverIO + tauri-driver to launch the compiled Tauri app and capture
- * 7 screenshots at 2× DPI matching the exact filenames expected by the website.
+ * Two modes, selected with the SCREENSHOT_MODE environment variable:
  *
- * Prerequisites (native mode):
- *   - Built Tauri binary: `cargo build --release` in src-tauri/
- *   - tauri-driver on PATH (or TAURI_DRIVER_PATH env var)
- *   - Display server (Xvfb on headless Linux, native on Windows/macOS)
+ * - `browser` (default): runs the Svelte frontend in headless Chrome against
+ *   the Vite dev server with Tauri IPC mocked at the JS boundary. No Rust
+ *   build, no tauri-driver, no display needed. Used by CI.
  *
- * If prerequisites are missing, exits 0 with a clear message (CI-friendly).
+ * - `native`: launches the compiled Tauri binary through tauri-driver.
+ *   Requires a built binary (`cargo build --release` in src-tauri) plus
+ *   tauri-driver on PATH and a display server. Used for local captures that
+ *   must match the real app chrome exactly.
+ *
+ * Both modes capture the same 7 screenshots at 2× DPI matching the exact
+ * filenames expected by the website (website/static/screenshots/README.md).
  *
  * Usage:
  *   node tests/screenshots/capture.mjs [--help]
+ *   SCREENSHOT_MODE=native node tests/screenshots/capture.mjs
  *
  * Output: tests/screenshots/current/*.png (7 files)
  */
@@ -22,6 +27,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { remote } from 'webdriverio';
 import { startWdioSession, cleanupWdioSession } from '@wdio/tauri-service';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,7 +35,9 @@ const __dirname = dirname(__filename);
 const ROOT = resolve(__dirname, '../..');
 const SCREENSHOTS_DIR = join(ROOT, 'tests', 'screenshots');
 const CURRENT_DIR = join(SCREENSHOTS_DIR, 'current');
-const BASELINE_DIR = join(SCREENSHOTS_DIR, 'baseline');
+
+const MODE = (process.env.SCREENSHOT_MODE ?? 'browser');
+const isBrowser = MODE === 'browser';
 
 const SHOTS = [
   { name: 'main-window-light.png', theme: 'light', setup: null },
@@ -41,7 +49,8 @@ const SHOTS = [
   { name: 'find-helper-dialog.png', theme: 'system', setup: 'open-find-helper' },
 ];
 
-const DPI_SCALE = 2; // 2× DPI for crisp website images
+const WIDTH = 1920;
+const HEIGHT = 1080;
 
 function printHelp() {
   console.log(`
@@ -50,16 +59,13 @@ VidCompare Screenshot Capture
 
 Captures 7 screenshots at 2× DPI for the website gallery.
 
-Prerequisites (native mode):
-  1. Build the Tauri app:    cd src-tauri && cargo build --release
-  2. Install tauri-driver:   cargo install tauri-driver
-     (or set TAURI_DRIVER_PATH to its location)
-  3. Display server:
-     - Linux CI: xvfb-run -a --server-args="-screen 0 1920x1080x24"
-     - Windows/macOS: native display
-
-If any prerequisite is missing, the script exits 0 with a message
-(so CI doesn't fail on environments that can't run native tests).
+Modes (SCREENSHOT_MODE env var):
+  browser (default)  Headless Chrome + Vite dev server + mocked IPC.
+                     No Rust build, no tauri-driver, no display needed.
+  native             Real Tauri binary via tauri-driver. Requires:
+                       1. cd src-tauri && cargo build --release
+                       2. cargo install tauri-driver (or TAURI_DRIVER_PATH)
+                       3. Display server (xvfb-run on headless Linux)
 
 Usage:
   node tests/screenshots/capture.mjs [--help]
@@ -69,7 +75,22 @@ Output:
 `);
 }
 
-async function checkPrerequisites() {
+function runCommand(cmd, args) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (d) => (stdout += d.toString()));
+    proc.stderr.on('data', (d) => (stderr += d.toString()));
+    proc.on('close', (code) => {
+      if (code === 0) resolve({ stdout, stderr });
+      else reject(new Error(`${cmd} exited ${code}: ${stderr}`));
+    });
+    proc.on('error', reject);
+  });
+}
+
+async function checkNativePrerequisites() {
   const ext = process.platform === 'win32' ? '.exe' : '';
   const binaryPath = resolve(ROOT, `src-tauri/target/release/vidcompare${ext}`);
 
@@ -113,86 +134,75 @@ async function checkPrerequisites() {
   return { binaryPath, driverPath, missing };
 }
 
-function runCommand(cmd, args) {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    proc.stdout.on('data', (d) => (stdout += d.toString()));
-    proc.stderr.on('data', (d) => (stderr += d.toString()));
-    proc.on('close', (code) => {
-      if (code === 0) resolve({ stdout, stderr });
-      else reject(new Error(`${cmd} exited ${code}: ${stderr}`));
-    });
-    proc.on('error', reject);
+/** Mock the IPC surface the app touches during startup and per-shot setup. */
+async function mockIpc(client) {
+  const settings = await client.tauri.mock('load_settings');
+  await settings.mockResolvedValue({
+    theme: 'system',
+    custom_binary_path: null,
+    custom_profile_path: null,
+    active_profile: null,
+    recent_folders: [],
+    log_level: 'info',
+    portable: false,
   });
+  const saveSettings = await client.tauri.mock('save_settings');
+  await saveSettings.mockResolvedValue(undefined);
+  const binary = await client.tauri.mock('resolve_binary');
+  await binary.mockResolvedValue({
+    path: '/usr/bin/video-compare',
+    source: 'PATH',
+    version: '2025-01-01',
+  });
+  const listMediaFiles = await client.tauri.mock('list_media_files');
+  await listMediaFiles.mockResolvedValue([
+    { name: 'take2.mkv', path: 'P:\\videos\\clip\\take2.mkv', size: 208 * 1024 * 1024, mtime: null, ext: 'mkv', is_video: true },
+    { name: 'take2-h264.mp4', path: 'P:\\videos\\clip\\take2-h264.mp4', size: 96 * 1024 * 1024, mtime: null, ext: 'mp4', is_video: true },
+    { name: 'take2-av1.mkv', path: 'P:\\videos\\clip\\take2-av1.mkv', size: 61 * 1024 * 1024, mtime: null, ext: 'mkv', is_video: true },
+    { name: 'take2-prores.mov', path: 'P:\\videos\\clip\\take2-prores.mov', size: 1240 * 1024 * 1024, mtime: null, ext: 'mov', is_video: true },
+    { name: 'take2.srt', path: 'P:\\videos\\clip\\take2.srt', size: 14 * 1024, mtime: null, ext: 'srt', is_video: false },
+    { name: 'notes.txt', path: 'P:\\videos\\clip\\notes.txt', size: 2 * 1024, mtime: null, ext: 'txt', is_video: false },
+  ]);
+  const runInfoCommand = await client.tauri.mock('run_info_command');
+  await runInfoCommand.mockResolvedValue(
+    'Available filters:\n  yadif\n  scale\n  crop\n  hstack\n  vstack\n  ...',
+  );
+  const describePath = await client.tauri.mock('describe_path');
+  await describePath.mockResolvedValue({ is_dir: false });
 }
 
-async function captureScreenshots(binaryPath, driverPath) {
-  // Clean and create current directory
-  if (existsSync(CURRENT_DIR)) rmSync(CURRENT_DIR, { recursive: true });
-  mkdirSync(CURRENT_DIR, { recursive: true });
-
-  // Standalone session via the service's init/cleanup API — plain
-  // webdriverio remote() ignores `services` (only the WDIO testrunner
-  // initializes them), so the driver would never be spawned otherwise.
-  const client = await startWdioSession({
-    'wdio:tauriServiceOptions': {
-      mode: 'native',
-      driverProvider: 'external',
-      appBinaryPath: binaryPath,
-      tauriDriverPath: driverPath,
-      autoInstallTauriDriver: false,
-      autoDownloadEdgeDriver: true,
-      captureBackendLogs: true,
-    },
-    'tauri:options': {
-      application: binaryPath,
-    },
+/** Seed localStorage presets before the app loads (PresetsBar reads on init). */
+async function seedPresets(client) {
+  await client.execute(() => {
+    const presets = [
+      {
+        name: 'H264 vs AV1',
+        options: { 'display-mode': { value: 'split' } },
+        left: { path: 'P:\\videos\\clip\\take2-h264.mp4' },
+        rights: [{ path: 'P:\\videos\\encode-test\\take2-av1.mkv' }],
+        updatedAt: Date.now(),
+      },
+      {
+        name: 'ProRes master',
+        options: {},
+        left: { path: 'P:\\videos\\clip\\take2-prores.mov' },
+        rights: [],
+        updatedAt: Date.now(),
+      },
+    ];
+    localStorage.setItem('vidcompare.presets.v1', JSON.stringify(presets));
   });
-
-  try {
-    // Wait for app to be ready
-    await client.pause(3000);
-
-    // Set window size for 2× DPI (base 960×540 → 1920×1080 at 2×)
-    await client.setWindowRect(0, 0, 1920, 1080);
-
-    for (const shot of SHOTS) {
-      console.log(`Capturing ${shot.name}...`);
-
-      // Apply theme if needed
-      if (shot.theme !== 'system') {
-        await applyTheme(client, shot.theme);
-        await client.pause(500); // Wait for theme transition
-      }
-
-      // Run setup action if specified
-      if (shot.setup) {
-        await runSetup(client, shot.setup);
-        await client.pause(500);
-      }
-
-      // Capture screenshot
-      const screenshot = await client.takeScreenshot();
-      const buffer = Buffer.from(screenshot, 'base64');
-      const outputPath = join(CURRENT_DIR, shot.name);
-      await writeFile(outputPath, buffer);
-      console.log(`  Saved: ${outputPath}`);
-    }
-  } finally {
-    await cleanupWdioSession(client);
-  }
 }
 
 async function applyTheme(client, theme) {
   // The app uses a theme toggle button; click it to cycle to desired theme
   // Theme order: system → light → dark → system
-  const themeBtn = await client.$('button[aria-label*="theme" i], button[aria-label*="Theme" i]');
+  const themeBtn = await client.$('button[title^="Theme:"]');
   if (await themeBtn.isExisting()) {
     const currentTheme = await getCurrentTheme(client);
-    const targetIndex = ['system', 'light', 'dark'].indexOf(theme);
-    const currentIndex = ['system', 'light', 'dark'].indexOf(currentTheme);
+    const order = ['system', 'light', 'dark'];
+    const targetIndex = order.indexOf(theme);
+    const currentIndex = order.indexOf(currentTheme);
     const clicks = (targetIndex - currentIndex + 3) % 3;
     for (let i = 0; i < clicks; i++) {
       await themeBtn.click();
@@ -202,12 +212,11 @@ async function applyTheme(client, theme) {
 }
 
 async function getCurrentTheme(client) {
-  // Try to read from the theme toggle button's aria-label or class
-  const themeBtn = await client.$('button[aria-label*="theme" i], button[aria-label*="Theme" i]');
+  const themeBtn = await client.$('button[title^="Theme:"]');
   if (await themeBtn.isExisting()) {
-    const label = await themeBtn.getAttribute('aria-label');
-    if (label?.includes('light')) return 'light';
-    if (label?.includes('dark')) return 'dark';
+    const title = await themeBtn.getAttribute('title');
+    if (title?.includes('light')) return 'light';
+    if (title?.includes('dark')) return 'dark';
     return 'system';
   }
   return 'system';
@@ -216,8 +225,6 @@ async function getCurrentTheme(client) {
 async function runSetup(client, setup) {
   switch (setup) {
     case 'populate-files':
-      // Click folder picker for left panel, select fixture folder
-      // This is a placeholder - actual implementation depends on app UI
       await populateFilePanels(client);
       break;
     case 'expand-options':
@@ -236,12 +243,16 @@ async function runSetup(client, setup) {
 }
 
 async function populateFilePanels(client) {
-  // Click the left folder button
-  const leftBtn = await client.$('button:has(.badge-left), button[aria-label*="Reference" i]');
-  if (await leftBtn.isExisting()) {
-    await leftBtn.click();
-    await client.pause(1000);
-    // In a real scenario, we'd use the file dialog - for now just ensure UI renders
+  // Type a directory path into each panel's input and commit it; the mocked
+  // list_media_files returns fixture entries.
+  const inputs = await client.$$('.dir-input');
+  if (inputs.length >= 2) {
+    await inputs[0].setValue('P:\\videos\\clip');
+    await inputs[0].keys('Enter');
+    await client.pause(300);
+    await inputs[1].setValue('P:\\videos\\encode-test');
+    await inputs[1].keys('Enter');
+    await client.pause(300);
   }
 }
 
@@ -255,17 +266,17 @@ async function expandOptionGroups(client) {
 }
 
 async function showLogPanel(client) {
-  // Trigger log panel visibility - click a button or run a command
-  const logBtn = await client.$('button[aria-label*="log" i], button[aria-label*="Log" i]');
-  if (await logBtn.isExisting()) {
-    await logBtn.click();
-    await client.pause(500);
-  }
+  // Emit fake launch events so the log panel renders with sample output.
+  await client.tauri.emitEvent('launch://stdout', { id: 'shot', line: 'video-compare 2025-01-01' });
+  await client.tauri.emitEvent('launch://stdout', { id: 'shot', line: 'Left:  take2-h264.mp4' });
+  await client.tauri.emitEvent('launch://stdout', { id: 'shot', line: 'Right: take2-av1.mkv' });
+  await client.tauri.emitEvent('launch://stderr', { id: 'shot', line: 'Frame 1200 / 5400' });
+  await client.pause(300);
 }
 
 async function showPresetsBar(client) {
   // Presets bar should be visible by default; ensure it's in view
-  const presets = await client.$('.presets-bar, [data-testid="presets-bar"]');
+  const presets = await client.$('.presets');
   if (await presets.isExisting()) {
     await presets.scrollIntoView();
     await client.pause(200);
@@ -273,22 +284,52 @@ async function showPresetsBar(client) {
 }
 
 async function openFindHelperDialog(client) {
-  // Click settings, then find helper button
-  const settingsBtn = await client.$('button=Settings, button[aria-label*="Settings" i]');
-  if (await settingsBtn.isExisting()) {
-    await settingsBtn.click();
+  // Click the "Find filters" helper button in the options header
+  const findBtn = await client.$('button=Find filters');
+  if (await findBtn.isExisting()) {
+    await findBtn.click();
     await client.pause(500);
-    const findBtn = await client.$('button=Find Helper, button[aria-label*="Find Helper" i]');
-    if (await findBtn.isExisting()) {
-      await findBtn.click();
-      await client.pause(500);
-    }
   }
 }
 
 async function writeFile(path, data) {
   const { writeFile } = await import('node:fs/promises');
   await writeFile(path, data);
+}
+
+async function captureScreenshots(client) {
+  // Clean and create current directory
+  if (existsSync(CURRENT_DIR)) rmSync(CURRENT_DIR, { recursive: true });
+  mkdirSync(CURRENT_DIR, { recursive: true });
+
+  // Wait for app to be ready
+  await client.pause(3000);
+
+  // Set window size for 2× DPI (base 960×540 → 1920×1080 at 2×)
+  await client.setWindowRect(0, 0, WIDTH, HEIGHT);
+
+  for (const shot of SHOTS) {
+    console.log(`Capturing ${shot.name}...`);
+
+    // Apply theme if needed
+    if (shot.theme !== 'system') {
+      await applyTheme(client, shot.theme);
+      await client.pause(500); // Wait for theme transition
+    }
+
+    // Run setup action if specified
+    if (shot.setup) {
+      await runSetup(client, shot.setup);
+      await client.pause(500);
+    }
+
+    // Capture screenshot
+    const screenshot = await client.takeScreenshot();
+    const buffer = Buffer.from(screenshot, 'base64');
+    const outputPath = join(CURRENT_DIR, shot.name);
+    await writeFile(outputPath, buffer);
+    console.log(`  Saved: ${outputPath}`);
+  }
 }
 
 async function main() {
@@ -300,26 +341,111 @@ async function main() {
 
   console.log('VidCompare Screenshot Capture');
   console.log('=============================\n');
+  console.log(`Mode: ${MODE}`);
 
-  const { binaryPath, driverPath, missing } = await checkPrerequisites();
+  let client;
 
-  if (missing.length > 0) {
-    console.log('⚠ Prerequisites not met (exiting 0 for CI compatibility):');
-    for (const m of missing) console.log(`  - ${m}`);
-    console.log('\nRun with --help for setup instructions.');
-    process.exit(0);
+  if (isBrowser) {
+    // Browser mode: headless Chrome + Vite dev server + mocked IPC.
+    // The standalone tauri-service init() doesn't support browser mode
+    // (it expects a driver port), so we drive Chrome directly and mock
+    // IPC via the injected interceptor script.
+    const viteBin = join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
+    const devServer = spawn(process.execPath, [viteBin, '--port', '1420', '--strictPort'], {
+      cwd: ROOT,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let devServerReady = false;
+    let devServerOutput = '';
+    devServer.stdout.on('data', (d) => {
+      const s = d.toString();
+      devServerOutput += s;
+      // Strip ANSI escape codes before matching
+      const clean = s.replace(/\x1b\[[0-9;]*m/g, '');
+      if (clean.includes('Local:') || clean.includes('localhost:1420')) devServerReady = true;
+    });
+    devServer.stderr.on('data', (d) => {
+      const s = d.toString();
+      devServerOutput += s;
+      const clean = s.replace(/\x1b\[[0-9;]*m/g, '');
+      if (clean.includes('Local:') || clean.includes('localhost:1420')) devServerReady = true;
+    });
+
+    // Wait for dev server readiness (up to 180s for cold Vite cache)
+    const deadline = Date.now() + 180_000;
+    while (!devServerReady && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    if (!devServerReady) {
+      devServer.kill();
+      throw new Error(`Vite dev server did not become ready within 180s. Output:\n${devServerOutput}`);
+    }
+    console.log('Dev server ready on http://localhost:1420');
+
+    client = await remote({
+      capabilities: {
+        browserName: 'chrome',
+        'goog:chromeOptions': {
+          args: ['--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage'],
+        },
+      },
+      logLevel: 'warn',
+    });
+
+    // Navigate to the dev server
+    await client.url('http://localhost:1420');
+    await client.pause(2000);
+
+    // Mock IPC via the injected interceptor (browser-mode service does this
+    // automatically; here we do it manually via execute).
+    await mockIpc(client);
+    await seedPresets(client);
+    await client.refresh();
+    await client.pause(2000);
+  } else {
+    // Native mode: real Tauri binary via tauri-driver.
+    const { binaryPath, driverPath, missing } = await checkNativePrerequisites();
+
+    if (missing.length > 0) {
+      console.log('⚠ Prerequisites not met (exiting 0 for CI compatibility):');
+      for (const m of missing) console.log(`  - ${m}`);
+      console.log('\nRun with --help for setup instructions.');
+      process.exit(0);
+    }
+
+    console.log(`Binary: ${binaryPath}`);
+    console.log(`Driver: ${driverPath}`);
+
+    client = await startWdioSession({
+      'wdio:tauriServiceOptions': {
+        mode: 'native',
+        driverProvider: 'external',
+        appBinaryPath: binaryPath,
+        tauriDriverPath: driverPath,
+        autoInstallTauriDriver: false,
+        autoDownloadEdgeDriver: true,
+        captureBackendLogs: true,
+      },
+      'tauri:options': {
+        application: binaryPath,
+      },
+    });
   }
 
-  console.log(`Binary: ${binaryPath}`);
-  console.log(`Driver: ${driverPath}`);
   console.log(`Output: ${CURRENT_DIR}\n`);
 
   try {
-    await captureScreenshots(binaryPath, driverPath);
+    await captureScreenshots(client);
     console.log('\n✓ All 7 screenshots captured successfully');
   } catch (err) {
     console.error('\n✗ Capture failed:', err.message);
     process.exit(1);
+  } finally {
+    if (isBrowser) {
+      await client.deleteSession();
+    } else {
+      await cleanupWdioSession(client);
+    }
   }
 }
 

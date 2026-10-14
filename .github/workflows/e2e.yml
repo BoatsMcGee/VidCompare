@@ -54,3 +54,24 @@ jobs:
         env:
           E2E_MODE: browser
         run: npm run e2e
+
+  screenshots:
+    name: Screenshot capture (browser mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Build frontend only (no Rust)
+        run: npm run build
+      - name: Capture screenshots (browser mode, 2× DPI)
+        run: npm run screenshots
+      - name: Upload screenshots as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-current
+          path: tests/screenshots/current/*.png
+          retention-days: 7

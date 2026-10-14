@@ -13,7 +13,7 @@ This document describes the complete testing strategy for VidCompare, covering a
 | **Type Checking** | svelte-check + tsc | `npm run check` | Zero errors |
 | **E2E (Browser)** | WebdriverIO + Chrome (mocked IPC) | `E2E_MODE=browser npm run e2e` | Smoke tests, no display needed |
 | **E2E (Native)** | WebdriverIO + tauri-driver | `npm run e2e` | Real Tauri binary, requires display |
-| **Screenshots** | WebdriverIO + tauri-driver + pixelmatch | `npm run screenshots` / `npm run screenshots:compare` | 7 views at 2× DPI, regression threshold 1% |
+| **Screenshots** | WebdriverIO + Chrome (browser mode) or tauri-driver (native) | `npm run screenshots` / `npm run screenshots:compare` | 7 views at 2× DPI, regression threshold 1% |
 
 ---
 
@@ -132,14 +132,26 @@ export WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1
 
 **Run:**
 ```bash
+# Browser mode (default, CI-friendly — no Rust build, no display)
 npm run screenshots
+
+# Native mode (real Tauri binary, requires display)
+SCREENSHOT_MODE=native npm run screenshots
 ```
 
-**What it does:**
+**What it does (browser mode):**
+1. Starts the Vite dev server on port 1420
+2. Launches headless Chrome via WebdriverIO
+3. Mocks the Tauri IPC surface (`load_settings`, `resolve_binary`, `list_media_files`, etc.)
+4. Seeds localStorage presets for the presets bar
+5. Sets viewport to 1920×1080 (2× DPI base 960×540)
+6. Captures 7 screenshots matching website manifest
+
+**What it does (native mode):**
 1. Checks prerequisites (binary, tauri-driver, display) — exits 0 with message if missing (CI-friendly)
 2. Launches Tauri app via WebdriverIO + tauri-driver
 3. Sets window to 1920×1080 (2× DPI base 960×540)
-4. Captures 7 screenshots matching website manifest:
+4. Captures the same 7 screenshots
 
 | File | State |
 |------|-------|
@@ -187,13 +199,18 @@ npm run screenshots:compare --threshold=0.02  # Custom threshold (default 1%)
 | Job | Mode | Display | Purpose |
 |-----|------|---------|---------|
 | `e2e-browser` | Browser | ❌ | Fast smoke tests on every push/PR |
+| `screenshots` | Browser | ❌ | Capture 7 website screenshots (headless Chrome) |
 
 **Key CI notes:**
 - `e2e-browser` runs on every push/PR (no display needed)
-- Native E2E and screenshot jobs were removed because WebKitGTK under Xvfb
-  on Linux fails to initialize the webview silently, and WebView2 on Windows
-  CI fails to create a WebDriver session. Browser mode covers the UI behavior
-  with mocked IPC and is the reliable smoke tier.
+- `screenshots` captures the 7 website gallery shots in browser mode and
+  uploads them as artifacts. The website workflow consumes them from
+  `website/static/screenshots/` (populated by artifact download or manual
+  copy).
+- Native E2E was removed because WebKitGTK under Xvfb on Linux fails to
+  initialize the webview silently, and WebView2 on Windows CI fails to create
+  a WebDriver session. Browser mode covers the UI behavior with mocked IPC
+  and is the reliable smoke tier.
 
 ---
 
@@ -229,8 +246,11 @@ xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run e2e
 
 ### Screenshots Locally
 ```bash
-# Capture (needs native prerequisites)
+# Browser mode (default — no Rust build, no display)
 npm run screenshots
+
+# Native mode (real Tauri binary, requires display)
+SCREENSHOT_MODE=native npm run screenshots
 
 # Compare against committed baselines
 npm run screenshots:compare
@@ -258,6 +278,7 @@ Copy-Item tests\screenshots\current\*.png website\static\screenshots\
 | Coverage below threshold | Add tests for uncovered lines/branches/functions |
 | `svelte-check` errors | Fix TypeScript/Svelte issues in `src/` |
 | `DevToolsActivePort file doesn't exist` (Windows) | WebView2 runtime is missing or the app crashed before creating a window. Install WebView2 Runtime and verify the app starts manually. |
+| `ChromeDriver version mismatch` (local browser mode) | Local Chrome and ChromeDriver versions differ. Update Chrome or run `npm install chromedriver@latest` to match. CI runners have matching versions. |
 
 ---
 
