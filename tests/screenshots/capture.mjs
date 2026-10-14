@@ -136,6 +136,211 @@ async function checkNativePrerequisites() {
 
 /** Mock the IPC surface the app touches during startup and per-shot setup. */
 async function mockIpc(client) {
+  // Inject the browser-mode IPC interceptor (same script the tauri-service
+  // uses in browser mode). This patches window.__TAURI_INTERNALS__.invoke
+  // to route through window.__wdio_mocks__.
+  await client.execute(() => {
+    if (!window.__wdio_mocks__) {
+      // Minimal mock store setup (mirrors @wdio/native-spy)
+      window.__wdio_call_id__ = 0;
+      window.__wdio_spy__ = {
+        fn: () => {
+          const calls = [];
+          const results = [];
+          const invocationCallOrder = [];
+          let _implQueue = [];
+          let _defaultImpl;
+          let _defaultReturnValue = { __wdioType: 'not-set' };
+          let _defaultResolvedValue = { __wdioType: 'not-set' };
+          let _defaultRejectedValue = { __wdioType: 'not-set' };
+          let _returnThis = false;
+          const NOT_SET = { __wdioType: 'not-set' };
+          const mockFn = function(...args) {
+            const id = ++window.__wdio_call_id__;
+            calls.push(args);
+            invocationCallOrder.push(id);
+            let rv;
+            if (_implQueue.length > 0) {
+              const impl = _implQueue.shift();
+              if (impl && impl.__wdioType === 'resolve') {
+                rv = impl.__wdioVal;
+                results.push({ type: 'return', value: rv });
+                return Promise.resolve(rv);
+              } else if (impl && impl.__wdioType === 'reject') {
+                rv = impl.__wdioVal;
+                results.push({ type: 'throw', value: rv });
+                return Promise.reject(rv);
+              } else {
+                rv = impl.apply(this, args);
+                results.push({ type: 'return', value: rv });
+                return rv;
+              }
+            }
+            if (_defaultImpl) {
+              rv = _defaultImpl.apply(this, args);
+              results.push({ type: 'return', value: rv });
+              return rv;
+            }
+            if (_defaultRejectedValue !== NOT_SET) {
+              rv = _defaultRejectedValue;
+              results.push({ type: 'throw', value: rv });
+              return Promise.reject(rv);
+            }
+            if (_defaultResolvedValue !== NOT_SET) {
+              rv = _defaultResolvedValue;
+              results.push({ type: 'return', value: rv });
+              return Promise.resolve(rv);
+            }
+            if (_returnThis) {
+              results.push({ type: 'return', value: this });
+              return this;
+            }
+            if (_defaultReturnValue !== NOT_SET) {
+              rv = _defaultReturnValue;
+              results.push({ type: 'return', value: rv });
+              return rv;
+            }
+            results.push({ type: 'return', value: undefined });
+            return undefined;
+          };
+          mockFn._isMockFunction = true;
+          const snapshot = { calls, results, invocationCallOrder };
+          Object.defineProperty(mockFn, 'mock', { get: () => snapshot, enumerable: true, configurable: true });
+          mockFn.mockName = (n) => { mockFn._name = n; return mockFn; };
+          mockFn.getMockName = () => mockFn._name;
+          mockFn.getMockImplementation = () => _defaultImpl;
+          mockFn.mockImplementation = (fn) => { _defaultImpl = fn; _returnThis = false; return mockFn; };
+          mockFn.mockImplementationOnce = (fn) => { _implQueue.push(fn); return mockFn; };
+          mockFn.mockReturnValue = (val) => { _defaultImpl = undefined; _defaultReturnValue = val; _defaultResolvedValue = NOT_SET; _defaultRejectedValue = NOT_SET; _returnThis = false; return mockFn; };
+          mockFn.mockReturnValueOnce = (val) => { _implQueue.push(() => val); return mockFn; };
+          mockFn.mockResolvedValue = (val) => { _defaultImpl = undefined; _defaultResolvedValue = val; _defaultReturnValue = NOT_SET; _defaultRejectedValue = NOT_SET; _returnThis = false; return mockFn; };
+          mockFn.mockResolvedValueOnce = (val) => { _implQueue.push({ __wdioType: 'resolve', __wdioVal: val }); return mockFn; };
+          mockFn.mockRejectedValue = (val) => { _defaultImpl = undefined; _defaultRejectedValue = val; _defaultReturnValue = NOT_SET; _defaultResolvedValue = NOT_SET; _returnThis = false; return mockFn; };
+          mockFn.mockRejectedValueOnce = (val) => { _implQueue.push({ __wdioType: 'reject', __wdioVal: val }); return mockFn; };
+          mockFn.mockClear = () => { calls.length = 0; results.length = 0; invocationCallOrder.length = 0; return mockFn; };
+          mockFn.mockReset = () => { mockFn.mockClear(); _implQueue = []; _defaultImpl = undefined; _defaultReturnValue = NOT_SET; _defaultResolvedValue = NOT_SET; _defaultRejectedValue = NOT_SET; _returnThis = false; return mockFn; };
+          mockFn.mockReturnThis = () => { _returnThis = true; _defaultReturnValue = NOT_SET; _defaultResolvedValue = NOT_SET; _defaultRejectedValue = NOT_SET; return mockFn; };
+          mockFn.withImplementation = (fn, callback) => {
+            const prevImpl = _defaultImpl, prevQueue = _implQueue.slice(), prevReturnThis = _returnThis;
+            _defaultImpl = fn; _implQueue = []; _returnThis = false;
+            const result = callback();
+            if (result && typeof result.then === 'function') {
+              return result.then((r) => { _defaultImpl = prevImpl; _implQueue = prevQueue; _returnThis = prevReturnThis; return r; }, (e) => { _defaultImpl = prevImpl; _implQueue = prevQueue; _returnThis = prevReturnThis; throw e; });
+            }
+            _defaultImpl = prevImpl; _implQueue = prevQueue; _returnThis = prevReturnThis;
+            return result;
+          };
+          return mockFn;
+        }
+      };
+      window.__wdio_mocks__ = {};
+    }
+    if (!window.__TAURI_INTERNALS__) { window.__TAURI_INTERNALS__ = {}; }
+    if (!window.__TAURI_INTERNALS__.callbacks) {
+      const callbacks = new Map();
+      let uid = 0;
+      window.__TAURI_INTERNALS__.callbacks = callbacks;
+      window.__TAURI_INTERNALS__.transformCallback = (cb, once) => {
+        const id = ++uid;
+        callbacks.set(id, (data) => {
+          if (once) callbacks.delete(id);
+          return cb && cb(data);
+        });
+        return id;
+      };
+      window.__TAURI_INTERNALS__.runCallback = (id, data) => {
+        const cb = callbacks.get(id);
+        if (cb) cb(data);
+      };
+      window.__TAURI_INTERNALS__.unregisterCallback = (id) => {
+        callbacks.delete(id);
+      };
+    }
+    if (!window.__wdio_tauri_listeners__) { window.__wdio_tauri_listeners__ = {}; }
+    if (typeof window.__wdio_event_id_seq__ !== 'number') { window.__wdio_event_id_seq__ = 0; }
+    if (!window.__TAURI_EVENT_PLUGIN_INTERNALS__) {
+      window.__TAURI_EVENT_PLUGIN_INTERNALS__ = {
+        unregisterListener: (event, eventId) => {
+          const bucket = window.__wdio_tauri_listeners__[event];
+          if (bucket) delete bucket[eventId];
+        }
+      };
+    }
+    const normalizeTarget = (t) => {
+      if (t === undefined || t === null) return { kind: 'Any' };
+      if (typeof t === 'string') return { kind: 'AnyLabel', label: t };
+      return t;
+    };
+    const targetMatches = (subscriberTarget, emitTarget) => {
+      const s = normalizeTarget(subscriberTarget);
+      const e = normalizeTarget(emitTarget);
+      if (s.kind === 'Any' || e.kind === 'Any') return true;
+      if (s.kind === 'App' || e.kind === 'App') return s.kind === e.kind;
+      return s.label === e.label;
+    };
+    window.__wdio_emit_tauri_event__ = (eventName, payload, target) => {
+      const bucket = window.__wdio_tauri_listeners__[eventName];
+      if (!bucket) return;
+      const ids = Object.keys(bucket);
+      for (let i = 0; i < ids.length; i++) {
+        const entry = bucket[ids[i]];
+        if (!entry) continue;
+        if (target !== undefined && !targetMatches(entry.target, target)) continue;
+        window.__TAURI_INTERNALS__.runCallback(entry.handlerId, {
+          event: eventName,
+          id: Number(ids[i]),
+          payload
+        });
+      }
+    };
+    const handlePluginEvent = (cmd, args) => {
+      if (cmd === 'plugin:event|listen') {
+        const eventId = ++window.__wdio_event_id_seq__;
+        const ev = args && args.event;
+        if (!window.__wdio_tauri_listeners__[ev]) window.__wdio_tauri_listeners__[ev] = {};
+        window.__wdio_tauri_listeners__[ev][eventId] = {
+          handlerId: args && args.handler,
+          target: args && args.target
+        };
+        return Promise.resolve(eventId);
+      }
+      if (cmd === 'plugin:event|unlisten') {
+        const ev2 = args && args.event;
+        const id = args && args.eventId;
+        const bucket = window.__wdio_tauri_listeners__[ev2];
+        if (bucket) delete bucket[id];
+        return Promise.resolve();
+      }
+      if (cmd === 'plugin:event|emit') {
+        window.__wdio_emit_tauri_event__(args && args.event, args && args.payload);
+        return Promise.resolve();
+      }
+      if (cmd === 'plugin:event|emit_to') {
+        window.__wdio_emit_tauri_event__(args && args.event, args && args.payload, args && args.target);
+        return Promise.resolve();
+      }
+      return Promise.resolve();
+    };
+    window.__TAURI_INTERNALS__.invoke = (cmd, args, options) => {
+      const mock = window.__wdio_mocks__ && window.__wdio_mocks__[cmd];
+      if (mock && typeof mock === 'function') {
+        const mockResult = Promise.resolve().then(() => mock(args, options));
+        if (cmd && cmd.indexOf('plugin:event|') === 0) {
+          return mockResult.then(() => handlePluginEvent(cmd, args));
+        }
+        return mockResult;
+      }
+      if (cmd && cmd.indexOf('plugin:event|') === 0) {
+        return handlePluginEvent(cmd, args);
+      }
+      if (cmd && cmd.indexOf('plugin:') === 0) {
+        return Promise.resolve();
+      }
+      return Promise.reject(new Error('unmocked Tauri command in browser mode: ' + cmd));
+    };
+  });
+
+  // Register mocks via the injected interceptor
   const settings = await client.tauri.mock('load_settings');
   await settings.mockResolvedValue({
     theme: 'system',
