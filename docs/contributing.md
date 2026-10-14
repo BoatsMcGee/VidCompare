@@ -15,6 +15,9 @@ npm run dev          # Vite dev server (frontend only, mocked backend absent)
 npx tauri dev        # full app in dev mode (Rust + webview)
 ```
 
+Common Rust commands run from the repo root via npm scripts:
+`npm run cargo:check` / `cargo:test` / `cargo:clippy` / `cargo:fmt` / `cargo:clean`.
+
 For the sidecar (video-compare binary) during development, see
 `scripts/` and `sidecar-version.json`; the app also works with a custom binary
 path configured in Settings.

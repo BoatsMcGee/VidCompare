@@ -14,6 +14,12 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "e2e": "wdio run tests/e2e/wdio.conf.ts",
+    "cargo:check": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "cargo:test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "cargo:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
+    "cargo:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "cargo:clean": "cargo clean --manifest-path src-tauri/Cargo.toml",
+    "tauri:dev": "tauri dev",
     "screenshots": "node tests/screenshots/capture.mjs",
     "screenshots:compare": "node tests/screenshots/compare.mjs"
   },
