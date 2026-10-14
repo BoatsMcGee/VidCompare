@@ -695,6 +695,7 @@ async function main() {
   } finally {
     if (isBrowser) {
       await client.deleteSession();
+      devServer.kill();
     } else {
       await cleanupWdioSession(client);
     }
