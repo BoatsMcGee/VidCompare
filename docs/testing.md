@@ -150,7 +150,7 @@ SCREENSHOT_MODE=native npm run screenshots
    post-load injection via `execute()` (the banner may flash there).
 4. Seeds localStorage presets in the same preload (PresetsBar reads on init)
 5. Sets viewport to 1920×1080 (2× DPI base 960×540)
-6. Generates the mandelbrot test image on-the-fly with FFmpeg (`mandelbrot=size=1280x720:rate=1`) into `tests/screenshots/current/mandelbrot-temp.png` — used as the stand-in for the embedded video-compare window on the compare page. Not committed to source control; requires `ffmpeg` on PATH (pre-installed on `ubuntu-latest` CI runners).
+6. Generates the mandelbrot test image on-the-fly with FFmpeg (`mandelbrot=size=1280x720:rate=1`) into `tests/screenshots/current/mandelbrot-temp.png` — used as the stand-in for the embedded video-compare window on the compare page. Not committed to source control; requires `ffmpeg` on PATH (CI installs it via apt — it is no longer pre-installed on `ubuntu-latest`).
 7. Captures 30 screenshots matching website manifest (15 subjects × light/dark)
 
 **What it does (native mode):**
