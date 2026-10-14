@@ -1,8 +1,16 @@
 # Website screenshots
 
-This folder is populated by the CI screenshot pipeline (M7). It intentionally
+This folder is populated by the CI screenshot pipeline. It intentionally
 contains no binary files in git — only this README and a `.gitkeep` so the
 directory exists.
+
+## How it works
+
+1. The `screenshots` job in `.github/workflows/e2e.yml` captures 7 PNGs
+   (2× DPI) in browser mode and uploads them as a workflow artifact.
+2. The `website.yml` workflow triggers on `workflow_run` of `e2e.yml` (or on
+   `workflow_dispatch`), downloads the artifact into this folder, builds the
+   site, and deploys to GitHub Pages.
 
 ## Expected file names
 
@@ -27,7 +35,7 @@ broken image, so the site stays presentable before the pipeline lands.
 To preview locally, copy captures from `tests/screenshots/` into this folder:
 
 ```powershell
-Copy-Item tests\screenshots\*.png website\static\screenshots\
+Copy-Item tests\screenshots\current\*.png website\static\screenshots\
 ```
 
 Files here are served at `/VidCompare/screenshots/<name>.png`.

@@ -183,7 +183,7 @@ npm run screenshots:compare --threshold=0.02  # Custom threshold (default 1%)
 
 **Baseline management:**
 - Baselines stored in `tests/screenshots/baseline/` (gitignored, committed via CI artifact or manual workflow)
-- Website consumes from `website/static/screenshots/` (populated by CI from artifacts)
+- Website consumes from `website/static/screenshots/` (populated by CI artifact download on `workflow_run`)
 
 ---
 
@@ -204,9 +204,9 @@ npm run screenshots:compare --threshold=0.02  # Custom threshold (default 1%)
 **Key CI notes:**
 - `e2e-browser` runs on every push/PR (no display needed)
 - `screenshots` captures the 7 website gallery shots in browser mode and
-  uploads them as artifacts. The website workflow consumes them from
-  `website/static/screenshots/` (populated by artifact download or manual
-  copy).
+  uploads them as artifacts. The website workflow downloads them on
+  `workflow_run` and copies them into `website/static/screenshots/` before
+  building.
 - Native E2E was removed because WebKitGTK under Xvfb on Linux fails to
   initialize the webview silently, and WebView2 on Windows CI fails to create
   a WebDriver session. Browser mode covers the UI behavior with mocked IPC

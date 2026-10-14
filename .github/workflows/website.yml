@@ -9,11 +9,17 @@ on:
       - 'website/**'
       - '.github/workflows/website.yml'
   workflow_dispatch:
+  # Rebuild the site when the E2E workflow finishes so new screenshots are picked up.
+  workflow_run:
+    workflows: ['E2E & Screenshots']
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 concurrency:
   group: pages
@@ -32,6 +38,16 @@ jobs:
       - name: Install dependencies
         working-directory: website
         run: npm ci
+      - name: Download latest screenshots artifact
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: screenshots-current
+          path: website/static/screenshots
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+          workflow: e2e.yml
+        continue-on-error: true
       - name: Build site
         working-directory: website
         run: npm run build
