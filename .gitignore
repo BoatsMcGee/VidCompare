@@ -51,3 +51,6 @@ playwright-report/
 *.bak
 *.orig
 *.rej
+
+# Local-only cargo config (kache rustc-wrapper)
+src-tauri/.cargo/

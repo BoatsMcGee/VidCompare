@@ -19,6 +19,21 @@ For the sidecar (video-compare binary) during development, see
 `scripts/` and `sidecar-version.json`; the app also works with a custom binary
 path configured in Settings.
 
+### Optional: local compiler cache
+
+`src-tauri/.cargo/config.toml` is gitignored so you can opt into a local
+rustc wrapper (e.g. [kache](https://github.com/kunobi-ninja/kache) or sccache)
+without affecting CI, which uses `Swatinem/rust-cache`. Example:
+
+```toml
+[build]
+rustc-wrapper = "kache"
+
+[env]
+KACHE_LOCAL_ONLY = "1"
+KACHE_CACHE_DIR = "P:/kache-store"  # same volume as the build tree
+```
+
 ### Website
 
 The marketing/docs site is a **separate package**:
