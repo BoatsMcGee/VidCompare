@@ -487,9 +487,32 @@ async function expandOptionGroups(client) {
 
 async function showLogPanel(client) {
   // Emit fake launch events so the log panel renders with sample output.
+  // The interceptor is injected on the page before app load, but the
+  // __wdio_emit_tauri_event__ function is only defined inside the IIFE —
+  // we need to re-declare it here for the execute() context.
   await client.execute((lines) => {
+    const emitEvent = (eventName, payload, target) => {
+      const bucket = window.__wdio_tauri_listeners__[eventName];
+      if (!bucket) return;
+      const ids = Object.keys(bucket);
+      for (let i = 0; i < ids.length; i++) {
+        const entry = bucket[ids[i]];
+        if (!entry) continue;
+        if (target !== undefined) {
+          const s = typeof entry.target === 'string' ? { kind: 'AnyLabel', label: entry.target } : (entry.target || { kind: 'Any' });
+          const e = typeof target === 'string' ? { kind: 'AnyLabel', label: target } : (target || { kind: 'Any' });
+          if (s.kind !== 'Any' && e.kind !== 'Any' && s.kind !== e.kind) continue;
+          if (s.kind === 'AnyLabel' && e.kind === 'AnyLabel' && s.label !== e.label) continue;
+        }
+        window.__TAURI_INTERNALS__.runCallback(entry.handlerId, {
+          event: eventName,
+          id: Number(ids[i]),
+          payload
+        });
+      }
+    };
     for (const { stream, text } of lines) {
-      window.__wdio_emit_tauri_event__(`launch://${stream}`, { id: 'shot', line: text });
+      emitEvent(`launch://${stream}`, { id: 'shot', line: text });
     }
   }, [
     { stream: 'stdout', text: 'video-compare 2025-01-01' },
