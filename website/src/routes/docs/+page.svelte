@@ -8,7 +8,6 @@
     { id: 'selecting-videos', label: 'Selecting videos' },
     { id: 'options-reference', label: 'The options reference' },
     { id: 'presets', label: 'Presets' },
-    { id: 'multiple-renditions', label: 'Multiple renditions' },
     { id: 'custom-binary', label: 'Custom video-compare binary' },
     { id: 'portable-mode', label: 'Portable mode' },
     { id: 'logs', label: 'Logs & troubleshooting' },
@@ -50,8 +49,8 @@
           <code>bundled · 2025-01-01</code>).
         </li>
         <li>
-          Pick a <strong>Reference</strong> (left) and a <strong>Distorted</strong> (right) video
-          from the two file panels.
+          Pick a <strong>left</strong> and a <strong>right</strong> video from the two file
+          panels.
         </li>
         <li>
           Adjust options — or just press <strong>▶ Compare</strong> in the header (its dropdown
@@ -101,12 +100,12 @@
       </p>
       <ul>
         <li>
-          The <strong>left</strong> panel is your <span class="badge badge-left">L</span> Reference —
-          the source everything is compared against. It's highlighted in blue throughout the UI.
+          The <strong>left</strong> panel (<span class="badge badge-left">L</span>) is the source
+          everything is compared against. It's highlighted in blue throughout the UI.
         </li>
         <li>
-          The <strong>right</strong> panel is your <span class="badge badge-right">R</span>
-          Distorted — the encode under test, highlighted in orange.
+          The <strong>right</strong> panel (<span class="badge badge-right">R</span>) is the encode
+          under test, highlighted in orange.
         </li>
         <li>
           <strong>Show all files</strong> toggles non-video siblings (subtitles, logs, posters) in
@@ -135,8 +134,8 @@
         </li>
         <li><strong>Search</strong> matches labels, flags and help text across all groups.</li>
         <li>
-          <strong>Side-aware columns</strong>: options under the Reference panel feed the left
-          input, options under the Distorted panel feed the right input, and shared options sit in
+          <strong>Side-aware columns</strong>: options under the left panel feed the left
+          input, options under the right panel feed the right input, and shared options sit in
           a full-width row below.
         </li>
         <li>
@@ -178,21 +177,6 @@
       <Screenshot file="presets-bar.png" caption="Saved presets above the options area" />
     </section>
 
-    <section id="multiple-renditions">
-      <h2>Multiple renditions</h2>
-      <p>
-        video-compare accepts <strong>multiple right-hand inputs</strong>, so one reference can be
-        compared against several encodes at once (the profile enables this with
-        <code>inputs.multiRight</code>). Additional distorted slots appear next to the right panel;
-        each slot can be marked as “same as left” (the <code>__</code> placeholder) or carry
-        per-video overrides written as <code>::key=value</code> suffixes on the path.
-      </p>
-      <p>
-        The command preview shows the final ordering: options first, then the reference path,
-        then each distorted path.
-      </p>
-    </section>
-
     <section id="custom-binary">
       <h2>Using a custom video-compare binary</h2>
       <p>
@@ -232,8 +216,8 @@
           binary.
         </li>
         <li>
-          <strong>Nothing happens on Launch</strong> — both a reference and at least one distorted
-          file must be selected; the preview shows exactly which paths will be passed.
+          <strong>Nothing happens on Launch</strong> — both a left and a right file must be
+          selected; the preview shows exactly which paths will be passed.
         </li>
         <li>
           <strong>Rolling file logs</strong> — diagnostic logs are written to your settings

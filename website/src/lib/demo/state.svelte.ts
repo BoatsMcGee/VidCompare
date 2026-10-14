@@ -49,8 +49,8 @@ class DemoState {
       exitCode: null,
       lines: [
         { stream: 'stdout', text: 'video-compare 2025-01-01 — pid 4321' },
-        { stream: 'stdout', text: 'reference : P:\\videos\\clip\\take2.mkv' },
-        { stream: 'stdout', text: 'distorted : P:\\videos\\encode-test\\take2-h264.mp4' },
+        { stream: 'stdout', text: 'left  : P:\\videos\\clip\\take2.mkv' },
+        { stream: 'stdout', text: 'right : P:\\videos\\encode-test\\take2-h264.mp4' },
         { stream: 'stdout', text: 'window ready (1920x1080) — press ? for keyboard help' }
       ]
     }

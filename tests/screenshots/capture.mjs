@@ -13,22 +13,24 @@
  *   tauri-driver on PATH and a display server. Used for local captures that
  *   must match the real app chrome exactly.
  *
- * Both modes capture the same 7 screenshots at 2× DPI matching the exact
- * filenames expected by the website (website/static/screenshots/README.md).
+ * Both modes capture the same 14 screenshots (7 subjects × light/dark) at
+ * 2× DPI matching the exact filenames expected by the website
+ * (website/static/screenshots/README.md).
  *
  * Usage:
  *   node tests/screenshots/capture.mjs [--help]
  *   SCREENSHOT_MODE=native node tests/screenshots/capture.mjs
  *
- * Output: tests/screenshots/current/*.png (7 files)
+ * Output: tests/screenshots/current/*.png (14 files)
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { remote } from 'webdriverio';
 import { startWdioSession, cleanupWdioSession } from '@wdio/tauri-service';
+import { createIpcInterceptor } from '@wdio/native-spy/interceptor';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,11 +44,34 @@ const isBrowser = MODE === 'browser';
 const SHOTS = [
   { name: 'main-window-light.png', theme: 'light', setup: null },
   { name: 'main-window-dark.png', theme: 'dark', setup: null },
-  { name: 'file-panels.png', theme: 'system', setup: 'populate-files' },
-  { name: 'options-groups.png', theme: 'system', setup: 'expand-options' },
-  { name: 'log-panel.png', theme: 'system', setup: 'show-log' },
-  { name: 'presets-bar.png', theme: 'system', setup: 'show-presets' },
-  { name: 'find-helper-dialog.png', theme: 'system', setup: 'open-find-helper' },
+  { name: 'file-panels-light.png', theme: 'light', setup: 'populate-files' },
+  { name: 'file-panels-dark.png', theme: 'dark', setup: 'populate-files' },
+  { name: 'options-groups-light.png', theme: 'light', setup: 'expand-options' },
+  { name: 'options-groups-dark.png', theme: 'dark', setup: 'expand-options' },
+  { name: 'log-panel-light.png', theme: 'light', setup: 'show-log' },
+  { name: 'log-panel-dark.png', theme: 'dark', setup: 'show-log' },
+  { name: 'presets-bar-light.png', theme: 'light', setup: 'show-presets' },
+  { name: 'presets-bar-dark.png', theme: 'dark', setup: 'show-presets' },
+  { name: 'find-helper-dialog-light.png', theme: 'light', setup: 'open-find-helper' },
+  { name: 'find-helper-dialog-dark.png', theme: 'dark', setup: 'open-find-helper' },
+  { name: 'compare-page-light.png', theme: 'light', setup: 'open-compare' },
+  { name: 'compare-page-dark.png', theme: 'dark', setup: 'open-compare' },
+  { name: 'options-quick-light.png', theme: 'light', setup: 'option-group-quick' },
+  { name: 'options-quick-dark.png', theme: 'dark', setup: 'option-group-quick' },
+  { name: 'options-display-light.png', theme: 'light', setup: 'option-group-display' },
+  { name: 'options-display-dark.png', theme: 'dark', setup: 'option-group-display' },
+  { name: 'options-playback-light.png', theme: 'light', setup: 'option-group-playback' },
+  { name: 'options-playback-dark.png', theme: 'dark', setup: 'option-group-playback' },
+  { name: 'options-color-light.png', theme: 'light', setup: 'option-group-color' },
+  { name: 'options-color-dark.png', theme: 'dark', setup: 'option-group-color' },
+  { name: 'options-filters-light.png', theme: 'light', setup: 'option-group-filters' },
+  { name: 'options-filters-dark.png', theme: 'dark', setup: 'option-group-filters' },
+  { name: 'options-io-light.png', theme: 'light', setup: 'option-group-io' },
+  { name: 'options-io-dark.png', theme: 'dark', setup: 'option-group-io' },
+  { name: 'options-scopes-light.png', theme: 'light', setup: 'option-group-scopes' },
+  { name: 'options-scopes-dark.png', theme: 'dark', setup: 'option-group-scopes' },
+  { name: 'options-advanced-light.png', theme: 'light', setup: 'option-group-advanced' },
+  { name: 'options-advanced-dark.png', theme: 'dark', setup: 'option-group-advanced' },
 ];
 
 const WIDTH = 1920;
@@ -57,7 +82,7 @@ function printHelp() {
 VidCompare Screenshot Capture
 =============================
 
-Captures 7 screenshots at 2× DPI for the website gallery.
+Captures 14 screenshots (7 subjects × light/dark) at 2× DPI for the website gallery.
 
 Modes (SCREENSHOT_MODE env var):
   browser (default)  Headless Chrome + Vite dev server + mocked IPC.
@@ -71,7 +96,7 @@ Usage:
   node tests/screenshots/capture.mjs [--help]
 
 Output:
-  tests/screenshots/current/*.png (7 files matching website manifest)
+  tests/screenshots/current/*.png (14 files matching website manifest)
 `);
 }
 
@@ -392,6 +417,20 @@ async function mockIpc(client) {
   await mock('app_info').mockResolvedValue({ version: '0.1.0', portable: false, os: 'linux', arch: 'x86_64' });
   await mock('list_profiles').mockResolvedValue([]);
   await mock('fetch_profiles_index').mockResolvedValue({ profiles: [] });
+  // Compare page: pretend an embedded video-compare window launched so the
+  // embed surface renders; the surface content is replaced with a fixture
+  // image by the open-compare setup.
+  await mock('embed_launch').mockResolvedValue({
+    id: 'shot',
+    started_at: Date.now(),
+    pid: 1234,
+    embedded: true,
+    reason: null,
+    aspect: 16 / 9,
+  });
+  await mock('embed_set_rect').mockResolvedValue(undefined);
+  await mock('embed_release').mockResolvedValue(undefined);
+  await mock('kill').mockResolvedValue(undefined);
 }
 
 /** Seed localStorage presets before the app loads (PresetsBar reads on init). */
@@ -446,6 +485,10 @@ async function getCurrentTheme(client) {
 }
 
 async function runSetup(client, setup) {
+  if (setup?.startsWith('option-group-')) {
+    await captureOptionGroup(client, setup.slice('option-group-'.length));
+    return;
+  }
   switch (setup) {
     case 'populate-files':
       await populateFilePanels(client);
@@ -461,6 +504,9 @@ async function runSetup(client, setup) {
       break;
     case 'open-find-helper':
       await openFindHelperDialog(client);
+      break;
+    case 'open-compare':
+      await openComparePage(client);
       break;
   }
 }
@@ -486,6 +532,25 @@ async function expandOptionGroups(client) {
     await tab.click();
     await client.pause(200);
   }
+}
+
+async function captureOptionGroup(client, groupId) {
+  // Click the tab whose label maps to the requested group id, then wait for
+  // it to become active before the screenshot is taken.
+  const tabs = await client.$$('.group-tabs button');
+  for (const tab of tabs) {
+    const label = (await tab.getText()).trim().toLowerCase();
+    if (label === groupId.toLowerCase()) {
+      await tab.click();
+      await client.waitUntil(
+        async () => (await tab.getAttribute('class'))?.includes('active'),
+        { timeout: 3000, timeoutMsg: `Group tab "${groupId}" did not activate` },
+      );
+      await client.pause(200);
+      return;
+    }
+  }
+  throw new Error(`Option group tab not found: ${groupId}`);
 }
 
 async function showLogPanel(client) {
@@ -547,15 +612,70 @@ async function openFindHelperDialog(client) {
   }
 }
 
+async function openComparePage(client) {
+  // Populate both file panels so the Compare button enables, then click it
+  // to switch to the compare page. embed_launch is mocked to succeed, so the
+  // embed surface renders; we then swap its content for the mandelbrot
+  // image generated on-the-fly by FFmpeg (a real video-compare window can't
+  // be embedded headless).
+  await populateFilePanels(client);
+  const compareBtn = await client.$('[data-testid="compare-button"]');
+  if (await compareBtn.isExisting()) {
+    await compareBtn.click();
+    await client.pause(500);
+  }
+  await client.execute(() => {
+    const surface = document.querySelector('.embed-surface')
+      ?? document.querySelector('[data-testid="embed-surface"]')
+      ?? document.querySelector('.compare-surface');
+    if (surface) {
+      surface.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = '/tests/screenshots/current/mandelbrot-temp.png';
+      img.alt = 'Mandelbrot test pattern';
+      img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
+      surface.appendChild(img);
+      const note = document.createElement('div');
+      note.textContent = 'Demo — embedded preview';
+      note.style.cssText = 'position:absolute;bottom:8px;right:12px;font-size:11px;opacity:0.6;pointer-events:none;';
+      surface.style.position = 'relative';
+      surface.appendChild(note);
+    }
+  });
+  await client.pause(300);
+}
+
 async function writeFile(path, data) {
   const { writeFile } = await import('node:fs/promises');
   await writeFile(path, data);
+}
+
+async function generateMandelbrotImage() {
+  // The compare-page screenshot needs a stand-in for the embedded
+  // video-compare window. Generate it on-the-fly with FFmpeg instead of
+  // committing a binary fixture to source control.
+  const outputPath = join(CURRENT_DIR, 'mandelbrot-temp.png');
+  try {
+    execFileSync('ffmpeg', [
+      '-y',
+      '-f', 'lavfi',
+      '-i', 'mandelbrot=size=1280x720:rate=1',
+      '-frames:v', '1',
+      outputPath,
+    ], { stdio: 'pipe' });
+    console.log(`  Generated mandelbrot test image: ${outputPath}`);
+  } catch (err) {
+    console.warn('  Warning: ffmpeg not available; compare-page screenshot will lack the mandelbrot image.');
+    console.warn(`  (${err.message})`);
+  }
 }
 
 async function captureScreenshots(client) {
   // Clean and create current directory
   if (existsSync(CURRENT_DIR)) rmSync(CURRENT_DIR, { recursive: true });
   mkdirSync(CURRENT_DIR, { recursive: true });
+
+  await generateMandelbrotImage();
 
   // Wait for app to be ready
   await client.pause(3000);
@@ -566,11 +686,9 @@ async function captureScreenshots(client) {
   for (const shot of SHOTS) {
     console.log(`Capturing ${shot.name}...`);
 
-    // Apply theme if needed
-    if (shot.theme !== 'system') {
-      await applyTheme(client, shot.theme);
-      await client.pause(500); // Wait for theme transition
-    }
+    // Apply theme (all shots specify an explicit light/dark variant)
+    await applyTheme(client, shot.theme);
+    await client.pause(500); // Wait for theme transition
 
     // Run setup action if specified
     if (shot.setup) {
@@ -693,7 +811,7 @@ async function main() {
 
   try {
     await captureScreenshots(client);
-    console.log('\n✓ All 7 screenshots captured successfully');
+    console.log('\n✓ All 14 screenshots captured successfully');
   } catch (err) {
     console.error('\n✗ Capture failed:', err.message);
     process.exit(1);

@@ -64,7 +64,7 @@
         <span class="date">{rel.date}</span>
       </header>
       <p class="summary">{rel.summary}</p>
-      {#each ['added', 'changed', 'fixed'] as type (type)}
+      {#each ['added', 'changed', 'fixed'] as const as type (type)}
         {@const items = rel.changes.filter((c) => c.type === type)}
         {#if items.length > 0}
           <h3>{labels[type]}</h3>

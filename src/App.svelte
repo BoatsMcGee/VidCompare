@@ -236,7 +236,14 @@
 
 <div class="app">
   <header>
-    <h1>VidCompare</h1>
+    <h1 class="app-title">
+      <svg class="app-logo" viewBox="0 0 32 32" width="22" height="22" fill="currentColor" aria-hidden="true">
+        <path d="M4 4 L14 16 L4 28 Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+        <rect x="15.5" y="4" width="1" height="24" opacity="0.6" />
+        <path d="M18 4 h4 v4 h-4 Z M18 8 h8 v4 h-8 Z M18 12 h12 v8 h-12 Z M18 20 h8 v4 h-8 Z M18 24 h4 v4 h-4 Z" />
+      </svg>
+      VidCompare
+    </h1>
     <div class="header-actions">
       {#if binaryInfo}
         <span class="badge badge-neutral">{binaryInfo.source} · {binaryInfo.version}</span>
@@ -379,6 +386,9 @@
     background: var(--bg-secondary);
   }
   header h1 {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     font-size: 16px;
     font-weight: 600;
   }

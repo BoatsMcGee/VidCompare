@@ -65,6 +65,8 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      - name: Verify FFmpeg is available (pre-installed on ubuntu-latest)
+        run: ffmpeg -version
       - name: Build frontend only (no Rust)
         run: npm run build
       - name: Capture screenshots (browser mode, 2× DPI)

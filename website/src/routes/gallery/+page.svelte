@@ -1,6 +1,10 @@
 <script lang="ts">
   import Screenshot from '$lib/Screenshot.svelte';
   import { shots } from '$lib/site';
+
+  // One entry per subject: collapse `-light`/`-dark` variants to the light
+  // filename; the Screenshot component swaps in the active theme's variant.
+  const subjects = shots.filter((s) => !s.file.endsWith('-dark.png'));
 </script>
 
 <svelte:head>
@@ -14,7 +18,7 @@
     refreshed on every release. Missing images render as placeholders until the pipeline lands.
   </p>
   <div class="grid">
-    {#each shots as shot (shot.file)}
+    {#each subjects as shot (shot.file)}
       <Screenshot file={shot.file} caption={shot.caption} />
     {/each}
   </div>

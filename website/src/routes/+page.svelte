@@ -3,6 +3,43 @@
   import { releasesUrl, upstreamUrl } from '$lib/site';
   import Screenshot from '$lib/Screenshot.svelte';
 
+  type OsId = 'windows' | 'linux' | 'macos';
+
+  const osTabs: { id: OsId; name: string; description: string; button: string }[] = [
+    {
+      id: 'windows',
+      name: 'Windows',
+      description:
+        'Portable zip — extract anywhere, or run the installer (.exe). Settings live in a Data\\ folder next to the executable.',
+      button: 'Download for Windows'
+    },
+    {
+      id: 'linux',
+      name: 'Linux',
+      description: 'AppImage (chmod +x, run) or .deb/.rpm packages.',
+      button: 'Download for Linux'
+    },
+    {
+      id: 'macos',
+      name: 'macOS',
+      description:
+        '.dmg or portable zip of the app bundle (unsigned). On first launch you may need to right-click → Open (or allow it in System Settings → Privacy & Security).',
+      button: 'Download for macOS'
+    }
+  ];
+
+  function detectOs(): OsId {
+    if (typeof navigator === 'undefined') return 'windows';
+    const hint = `${navigator.platform ?? ''} ${navigator.userAgent ?? ''}`.toLowerCase();
+    if (hint.includes('win')) return 'windows';
+    if (hint.includes('mac')) return 'macos';
+    if (hint.includes('linux')) return 'linux';
+    return 'windows';
+  }
+
+  let activeOs = $state<OsId>(detectOs());
+  const activeTab = $derived(osTabs.find((t) => t.id === activeOs) ?? osTabs[0]);
+
   const features = [
     {
       title: 'Full video-compare option coverage',
@@ -31,10 +68,6 @@
     {
       title: 'Cross-platform',
       body: 'Windows, Linux and macOS builds from the same codebase, bundling a pinned, SHA-256-verified video-compare sidecar.'
-    },
-    {
-      title: 'Presets & multi-rendition',
-      body: 'Save option sets as presets and compare one reference against multiple distorted videos, with per-video overrides.'
     }
   ];
 </script>
@@ -55,6 +88,41 @@
       <a class="btn primary" href="{base}/docs/">Get Started</a>
       <a class="btn" href="{base}/demo/">View Demo</a>
     </div>
+  </div>
+</section>
+
+<section class="section" id="download">
+  <div class="container">
+    <h2>Download &amp; install</h2>
+    <div class="tabs" role="tablist" aria-label="Operating system">
+      {#each osTabs as tab}
+        <button
+          type="button"
+          role="tab"
+          id="download-tab-{tab.id}"
+          aria-selected={activeOs === tab.id}
+          aria-controls="download-panel"
+          class:active={activeOs === tab.id}
+          onclick={() => (activeOs = tab.id)}
+        >
+          {tab.name}
+        </button>
+      {/each}
+    </div>
+    <div
+      class="download-panel"
+      role="tabpanel"
+      id="download-panel"
+      aria-labelledby="download-tab-{activeTab.id}"
+    >
+      <h3>{activeTab.name}</h3>
+      <p>{activeTab.description}</p>
+      <a class="btn primary" href={releasesUrl}>{activeTab.button}</a>
+    </div>
+    <p class="muted">
+      Or build from source — see the <a href="{base}/docs/">getting started guide</a>. Every
+      release also ships the matching option profiles for manual install.
+    </p>
   </div>
 </section>
 
@@ -80,37 +148,9 @@
       See the <a href="{base}/gallery/">full gallery</a>.
     </p>
     <div class="gallery">
-      <Screenshot file="main-window-light.png" caption="Main window — light theme" />
-      <Screenshot file="main-window-dark.png" caption="Main window — dark theme" />
+      <Screenshot file="main-window-light.png" caption="Main window" />
       <Screenshot file="options-groups.png" caption="Side-aligned option columns" />
     </div>
-  </div>
-</section>
-
-<section class="section" id="download">
-  <div class="container">
-    <h2>Download &amp; install</h2>
-    <div class="downloads">
-      <div class="download">
-        <h3>Windows</h3>
-        <p>Portable zip — extract anywhere, or run the installer (.exe).</p>
-        <a class="btn" href={releasesUrl}>Download for Windows</a>
-      </div>
-      <div class="download">
-        <h3>Linux</h3>
-        <p>AppImage (chmod +x, run) or .deb/.rpm packages.</p>
-        <a class="btn" href={releasesUrl}>Download for Linux</a>
-      </div>
-      <div class="download">
-        <h3>macOS</h3>
-        <p>.dmg or portable zip of the app bundle (unsigned).</p>
-        <a class="btn" href={releasesUrl}>Download for macOS</a>
-      </div>
-    </div>
-    <p class="muted">
-      Or build from source — see the <a href="{base}/docs/">getting started guide</a>. Every
-      release also ships the matching option profiles for manual install.
-    </p>
   </div>
 </section>
 
@@ -199,23 +239,44 @@
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 16px;
   }
-  .downloads {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 16px;
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
     margin-bottom: 16px;
   }
-  .download {
+  .tabs button {
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    background: transparent;
+    color: var(--fg-secondary);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .tabs button:hover {
+    color: var(--fg);
+    background: var(--bg-tertiary);
+  }
+  .tabs button.active {
+    color: var(--fg);
+    background: var(--bg-secondary);
+    border-color: var(--border);
+    font-weight: 600;
+  }
+  .download-panel {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px;
     background: var(--bg-secondary);
+    margin-bottom: 16px;
   }
-  .download h3 {
+  .download-panel h3 {
     font-size: 15px;
     margin-bottom: 6px;
   }
-  .download p {
+  .download-panel p {
     font-size: 13px;
     color: var(--fg-secondary);
     margin-bottom: 12px;

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" aria-hidden="true">
+  <!-- app icon background -->
+  <rect width="32" height="32" rx="6" fill="#1b1e24" />
+  <!-- smooth play icon (left), rounded corners -->
+  <path d="M6 7.75 L14.25 16 L6 24.25 Z" fill="#f2f4f8" stroke="#f2f4f8" stroke-width="1.5" stroke-linejoin="round" />
+  <!-- divider -->
+  <rect x="15.75" y="7" width="0.75" height="18" fill="#c0c4cc" opacity="0.7" />
+  <!-- pixelated play icon (right) -->
+  <path fill="#c0c4cc" d="M18 7 h3 v3 h-3 Z M18 10 h6 v3 h-6 Z M18 13 h9 v6 h-9 Z M18 19 h6 v3 h-6 Z M18 22 h3 v3 h-3 Z" />
+</svg>

@@ -145,7 +145,8 @@ SCREENSHOT_MODE=native npm run screenshots
 3. Mocks the Tauri IPC surface (`load_settings`, `resolve_binary`, `list_media_files`, etc.)
 4. Seeds localStorage presets for the presets bar
 5. Sets viewport to 1920×1080 (2× DPI base 960×540)
-6. Captures 7 screenshots matching website manifest
+6. Generates the mandelbrot test image on-the-fly with FFmpeg (`mandelbrot=size=1280x720:rate=1`) into `tests/screenshots/current/mandelbrot-temp.png` — used as the stand-in for the embedded video-compare window on the compare page. Not committed to source control; requires `ffmpeg` on PATH (pre-installed on `ubuntu-latest` CI runners).
+7. Captures 7 screenshots matching website manifest
 
 **What it does (native mode):**
 1. Checks prerequisites (binary, tauri-driver, display) — exits 0 with message if missing (CI-friendly)

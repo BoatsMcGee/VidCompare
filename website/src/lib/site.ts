@@ -12,13 +12,20 @@ export interface Shot {
 }
 
 export const shots: Shot[] = [
-  { file: 'main-window-light.png', caption: 'Main window — light theme' },
-  { file: 'main-window-dark.png', caption: 'Main window — dark theme' },
-  { file: 'file-panels.png', caption: 'File panels with sibling file lists' },
-  { file: 'options-groups.png', caption: 'Options groups with side-aligned L/R columns' },
-  { file: 'log-panel.png', caption: 'In-app log panel streaming sidecar output' },
-  { file: 'presets-bar.png', caption: 'Presets bar' },
-  { file: 'find-helper-dialog.png', caption: 'Find-helper dialog for custom video-compare binaries' }
+  { file: 'main-window-light.png', caption: 'Main window' },
+  { file: 'main-window-dark.png', caption: 'Main window' },
+  { file: 'file-panels-light.png', caption: 'File panels with sibling file lists' },
+  { file: 'file-panels-dark.png', caption: 'File panels with sibling file lists' },
+  { file: 'options-groups-light.png', caption: 'Options groups with side-aligned L/R columns' },
+  { file: 'options-groups-dark.png', caption: 'Options groups with side-aligned L/R columns' },
+  { file: 'log-panel-light.png', caption: 'In-app log panel streaming sidecar output' },
+  { file: 'log-panel-dark.png', caption: 'In-app log panel streaming sidecar output' },
+  { file: 'presets-bar-light.png', caption: 'Presets bar' },
+  { file: 'presets-bar-dark.png', caption: 'Presets bar' },
+  { file: 'find-helper-dialog-light.png', caption: 'Find-helper dialog for custom video-compare binaries' },
+  { file: 'find-helper-dialog-dark.png', caption: 'Find-helper dialog for custom video-compare binaries' },
+  { file: 'compare-page-light.png', caption: 'Compare page with embedded video-compare surface' },
+  { file: 'compare-page-dark.png', caption: 'Compare page with embedded video-compare surface' }
 ];
 
 export function shotUrl(file: string): string {
