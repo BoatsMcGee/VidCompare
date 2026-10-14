@@ -596,6 +596,7 @@ async function main() {
   console.log(`Mode: ${MODE}`);
 
   let client;
+  let devServer;
 
   if (isBrowser) {
     // Browser mode: headless Chrome + Vite dev server + mocked IPC.
@@ -603,7 +604,7 @@ async function main() {
     // (it expects a driver port), so we drive Chrome directly and mock
     // IPC via the injected interceptor script.
     const viteBin = join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
-    const devServer = spawn(process.execPath, [viteBin, '--port', '1420', '--strictPort'], {
+    devServer = spawn(process.execPath, [viteBin, '--port', '1420', '--strictPort'], {
       cwd: ROOT,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
