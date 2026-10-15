@@ -15,33 +15,58 @@
 
   let index = $state(0);
   let viewportEl = $state<HTMLDivElement | null>(null);
-  // Last requested slide; buttons advance from here, not from the in-flight scroll position.
+  // Last requested slide; buttons advance from here, not the in-flight scroll position.
   let target = 0;
+  // True while a button/dot-driven scroll is animating; scroll events are ignored until it ends.
+  let programmatic = false;
+  let settleTimer: ReturnType<typeof setTimeout> | undefined;
 
   const canPrev = $derived(index > 0);
   const canNext = $derived(index < slideCount - 1);
 
+  function nearestSlide(): number {
+    const el = viewportEl;
+    if (!el || el.clientWidth === 0) return index;
+    return Math.max(0, Math.min(slideCount - 1, Math.round(el.scrollLeft / el.clientWidth)));
+  }
+
   function goTo(i: number) {
     target = Math.max(0, Math.min(slideCount - 1, i));
     index = target;
+    programmatic = true;
+    clearTimeout(settleTimer);
     // No `behavior` here: CSS scroll-behavior applies (and reduced-motion overrides it).
     viewportEl?.scrollTo({ left: target * (viewportEl.clientWidth ?? 0) });
+    // Fallback for browsers without a `scrollend` event.
+    settleTimer = setTimeout(() => {
+      programmatic = false;
+    }, 700);
   }
 
   // Keep dots/arrows in sync with manual scrolling (touch, trackpad, drag).
   function onScroll() {
+    if (programmatic) return;
     const el = viewportEl;
     if (!el || el.clientWidth === 0) return;
-    const i = Math.max(0, Math.min(slideCount - 1, Math.round(el.scrollLeft / el.clientWidth)));
+    const i = nearestSlide();
+    const settled = Math.abs(el.scrollLeft - i * el.clientWidth) < 2;
     if (i !== index) index = i;
-    // Re-baseline only once a manual scroll settles on a snap point.
-    if (Math.abs(el.scrollLeft - i * el.clientWidth) < 2) target = i;
+    if (settled) target = i;
+  }
+
+  // Fires when any scroll (programmatic or user-driven) comes to rest.
+  function onScrollEnd() {
+    clearTimeout(settleTimer);
+    programmatic = false;
+    const i = nearestSlide();
+    if (i !== index) index = i;
+    target = i;
   }
 </script>
 
 <div class="carousel" role="group" aria-roledescription="carousel" aria-label={ariaLabel}>
   <div class="stage">
-    <div class="viewport" bind:this={viewportEl} onscroll={onScroll}>
+    <div class="viewport" bind:this={viewportEl} onscroll={onScroll} onscrollend={onScrollEnd}>
       <div class="track">
         {#each Array(slideCount) as _, i}
           <div
