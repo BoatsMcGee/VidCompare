@@ -6,12 +6,11 @@ directory exists.
 
 ## How it works
 
-1. The `screenshots` job in `.github/workflows/e2e.yml` captures 30 PNGs
-   (15 subjects × light/dark themes, 2× DPI) in browser mode and uploads
-   them as a workflow artifact.
-2. The `website.yml` workflow triggers on `workflow_run` of `e2e.yml` (or on
-   `workflow_dispatch`), downloads the artifact into this folder, builds the
-   site, and deploys to GitHub Pages.
+1. The `build` job in `.github/workflows/website.yml` captures 30 PNGs
+   (15 subjects × light/dark themes, 2× DPI) in browser mode on every site
+   deploy — push, `workflow_dispatch`, or `workflow_run` of `e2e.yml` — and
+   copies them into this folder before building the site. The Pages deploy
+   therefore always ships with fresh screenshots.
 
 ## Expected file names
 

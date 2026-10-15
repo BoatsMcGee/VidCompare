@@ -1,5 +1,9 @@
 name: E2E & Screenshots
 
+# Browser-mode E2E smoke tier. Screenshot capture lives in website.yml —
+# it captures fresh screenshots on every site deploy so the Pages site
+# never ships without them.
+
 on:
   push:
     branches: [main]
@@ -54,26 +58,3 @@ jobs:
         env:
           E2E_MODE: browser
         run: npm run e2e
-
-  screenshots:
-    name: Screenshot capture (browser mode)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm ci
-      - name: Install FFmpeg (not pre-installed on ubuntu-latest)
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Build frontend only (no Rust)
-        run: npm run build
-      - name: Capture screenshots (browser mode, 2× DPI)
-        run: npm run screenshots
-      - name: Upload screenshots as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots-current
-          path: tests/screenshots/current/*.png
-          retention-days: 7

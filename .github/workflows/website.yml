@@ -1,12 +1,18 @@
 name: Website
 
-# Builds the SvelteKit static site (website/) and deploys it to GitHub Pages.
+# Builds the SvelteKit static site (website/), captures fresh screenshots from
+# the app (browser mode), and deploys everything to GitHub Pages.
 # Contract with the website milestone: `npm run build` outputs to website/build.
 on:
   push:
     branches: [main]
     paths:
       - 'website/**'
+      - 'src/**'
+      - 'public/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/website.yml'
   workflow_dispatch:
   # Rebuild the site when the E2E workflow finishes so new screenshots are picked up.
@@ -34,19 +40,22 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: website/package-lock.json
-      - name: Install dependencies
+          cache-dependency-path: |
+            package-lock.json
+            website/package-lock.json
+      - name: Install website dependencies
         working-directory: website
         run: npm ci
-      - name: Download latest screenshots artifact
-        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          name: screenshots-current
-          path: website/static/screenshots
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-        continue-on-error: true
+      - name: Install app dependencies (screenshot capture runs against the app)
+        run: npm ci
+      - name: Install FFmpeg (mandelbrot fixture for the compare-page shot)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Capture screenshots (browser mode, 2× DPI)
+        run: npm run screenshots
+      - name: Copy screenshots into the site
+        run: |
+          mkdir -p website/static/screenshots
+          cp tests/screenshots/current/*.png website/static/screenshots/
       - name: Build site
         working-directory: website
         run: npm run build

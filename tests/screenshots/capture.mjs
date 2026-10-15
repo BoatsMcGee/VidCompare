@@ -472,25 +472,31 @@ async function openFindHelperDialog(client) {
 }
 
 async function openComparePage(client) {
-  // Populate both file panels so the Compare button enables, then click it
-  // to switch to the compare page. embed_launch is mocked to succeed, so the
-  // embed surface renders; we then swap its content for the mandelbrot
-  // image generated on-the-fly by FFmpeg (a real video-compare window can't
-  // be embedded headless).
+  // Populate both file panels and SELECT a file in each — canCompare stays
+  // false (Compare button disabled) until leftFile and rightFiles[0] are set.
   await populateFilePanels(client);
+  await selectFirstFileInEachPanel(client);
   const compareBtn = await client.$('[data-testid="compare-button"]');
-  if (await compareBtn.isExisting()) {
-    await compareBtn.click();
-    await client.pause(500);
-  }
-  await client.execute(() => {
-    const surface = document.querySelector('.embed-surface')
-      ?? document.querySelector('[data-testid="embed-surface"]')
-      ?? document.querySelector('.compare-surface');
+  await compareBtn.waitForClickable({ timeout: 5000 });
+  await compareBtn.click();
+  // Wait for the compare page to actually mount (the surface is its marker).
+  await client.waitUntil(
+    async () => (await client.$('[data-testid="surface"]').isExisting()),
+    { timeout: 5000, timeoutMsg: 'Compare page did not mount' },
+  );
+  await client.pause(500);
+  // embed_launch is mocked to succeed, so the embed surface renders; swap
+  // its content for the mandelbrot image generated on-the-fly by FFmpeg (a
+  // real video-compare window can't be embedded headless). The image is
+  // inlined as a data URL because the dev server doesn't serve
+  // tests/screenshots/current/.
+  const mandelbrotDataUrl = await toDataUrl(join(CURRENT_DIR, 'mandelbrot-temp.png'));
+  await client.execute((src) => {
+    const surface = document.querySelector('[data-testid="surface"]');
     if (surface) {
       surface.innerHTML = '';
       const img = document.createElement('img');
-      img.src = '/tests/screenshots/current/mandelbrot-temp.png';
+      img.src = src;
       img.alt = 'Mandelbrot test pattern';
       img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
       surface.appendChild(img);
@@ -500,8 +506,36 @@ async function openComparePage(client) {
       surface.style.position = 'relative';
       surface.appendChild(note);
     }
-  });
+  }, mandelbrotDataUrl);
   await client.pause(300);
+}
+
+/** Click the first video entry in each file panel so both sides have a selection. */
+async function selectFirstFileInEachPanel(client) {
+  const panels = await client.$$('.file-panels .panel');
+  for (const panel of panels) {
+    const entry = await panel.$('.file-entry');
+    if (await entry.isExisting()) {
+      await entry.click();
+      await client.pause(200);
+    }
+  }
+}
+
+/** Read a file as a base64 data URL (for injecting fixture images into the page). */
+async function toDataUrl(path) {
+  const { readFile } = await import('node:fs/promises');
+  const data = await readFile(path);
+  return `data:image/png;base64,${data.toString('base64')}`;
+}
+
+/** Return to the setup page from the compare view (Back button). */
+async function leaveComparePage(client) {
+  const back = await client.$('[data-testid="compare-back"]');
+  if (await back.isExisting()) {
+    await back.click();
+    await client.pause(300);
+  }
 }
 
 async function writeFile(path, data) {
@@ -564,6 +598,11 @@ async function captureScreenshots(client) {
     const outputPath = join(CURRENT_DIR, shot.name);
     await writeFile(outputPath, buffer);
     console.log(`  Saved: ${outputPath}`);
+
+    // Leave the compare page after capturing so later shots see the setup view.
+    if (shot.setup === 'open-compare') {
+      await leaveComparePage(client);
+    }
   }
 }
 

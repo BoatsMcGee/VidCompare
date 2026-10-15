@@ -197,7 +197,7 @@ npm run screenshots:compare --threshold=0.02  # Custom threshold (default 1%)
 
 **Baseline management:**
 - Baselines stored in `tests/screenshots/baseline/` (gitignored, committed via CI artifact or manual workflow)
-- Website consumes from `website/static/screenshots/` (populated by CI artifact download on `workflow_run`)
+- Website consumes from `website/static/screenshots/` (captured fresh by the website workflow's build job on every deploy)
 
 ---
 
@@ -208,19 +208,19 @@ npm run screenshots:compare --threshold=0.02  # Custom threshold (default 1%)
 - Rust: fmt, clippy, test
 - Build matrix: Windows, Linux, macOS
 
-### `.github/workflows/e2e.yml` (New in M7)
+### `.github/workflows/e2e.yml`
 
 | Job | Mode | Display | Purpose |
 |-----|------|---------|---------|
 | `e2e-browser` | Browser | ❌ | Fast smoke tests on every push/PR |
-| `screenshots` | Browser | ❌ | Capture 7 website screenshots (headless Chrome) |
 
 **Key CI notes:**
 - `e2e-browser` runs on every push/PR (no display needed)
-- `screenshots` captures the 7 website gallery shots in browser mode and
-  uploads them as artifacts. The website workflow downloads them on
-  `workflow_run` and copies them into `website/static/screenshots/` before
-  building.
+- Screenshot capture lives in `website.yml`: its build job captures the 30
+  website gallery shots in browser mode and copies them into
+  `website/static/screenshots/` before building the site, so every Pages
+  deploy ships with fresh screenshots (a website-only push can never wipe
+  them).
 - Native E2E was removed because WebKitGTK under Xvfb on Linux fails to
   initialize the webview silently, and WebView2 on Windows CI fails to create
   a WebDriver session. Browser mode covers the UI behavior with mocked IPC
