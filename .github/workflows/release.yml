@@ -232,10 +232,12 @@ jobs:
 
       # Rebuild the Pages site so download links and the changelog pick up the
       # new release (deferred from M6). Nightlies skip this — the website
-      # tracks stable releases.
+      # tracks stable releases. Dispatch on main explicitly: the default ref
+      # is the triggering tag, and Pages deploys from a tag ref fail.
       - name: Dispatch website rebuild
         if: ${{ !inputs.nightly }}
         uses: benc-uk/workflow-dispatch@v1.2.4
         with:
           workflow: website.yml
+          ref: main
           token: ${{ github.token }}
