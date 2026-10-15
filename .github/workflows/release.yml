@@ -42,12 +42,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Exposed by GitHub-hosted runners; changes when the image rolls.
+      # Used by the sidecar cache key below.
+      - name: Export runner image version
+        run: echo "ImageRunnerVersion=${ImageRunnerVersion:-unknown}" >> "$GITHUB_ENV"
+
       - name: Cache sidecar
         id: sidecar-cache
         uses: actions/cache@v4
         with:
           path: src-tauri/binaries
-          key: sidecar-${{ matrix.platform }}-${{ hashFiles('sidecar-version.json') }}
+          # The sidecar is built from source on Linux/macOS, so the cache
+          # must not outlive the runner image it was linked against: an
+          # ubuntu-latest image update can change the system FFmpeg soname
+          # (e.g. libavformat.so.60 -> .61) and linuxdeploy then fails with
+          # "Could not find dependency: libavformat.so.60". ImageRunnerVersion
+          # busts the cache when the image rolls.
+          key: sidecar-${{ matrix.platform }}-${{ env.ImageRunnerVersion }}-${{ hashFiles('sidecar-version.json') }}
 
       # Tauri app build dependencies (Linux) — shared with ci.yml/e2e.yml.
       - name: Install Tauri build dependencies (Linux)
