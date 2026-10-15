@@ -226,7 +226,7 @@ jobs:
           make_latest: ${{ steps.prerelease.outputs.is_prerelease == 'true' && 'false' || 'true' }}
           files: |
             artifacts/**/*
-            public/profiles/*.json
+            public/profiles/video-compare-latest.json
             profiles/profiles-index.json
             ${{ !inputs.nightly && 'latest.json' || '' }}
 
