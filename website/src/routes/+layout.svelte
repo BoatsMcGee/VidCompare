@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import type { Snippet } from 'svelte';
   import { initTheme, cycleTheme, getThemeSetting } from '$lib/theme.svelte';
+  import Logo from '$lib/Logo.svelte';
 
   let { children }: { children: Snippet } = $props();
 
@@ -14,7 +15,7 @@
 </script>
 
 <header class="site-header">
-  <a class="site-logo" href="{base}/"><img class="logo-icon" src="{base}/logo.svg" alt="" width="20" height="20" />VidCompare</a>
+  <a class="site-logo" href="{base}/"><Logo size={20} />VidCompare</a>
   <nav class="site-nav">
     <a href="{base}/">Home</a>
     <a href="{base}/demo/">Demo</a>
@@ -52,8 +53,8 @@
     align-items: center;
     gap: 8px;
   }
-  .logo-icon {
-    display: block;
+  :global([data-theme='dark']) .site-logo {
+    color: #c0c4cc;
   }
   .theme-toggle {
     padding: 2px 8px;

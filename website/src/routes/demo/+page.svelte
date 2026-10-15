@@ -8,6 +8,7 @@
   import CommandPreview from '$lib/demo/CommandPreview.svelte';
   import LogPanel from '$lib/demo/LogPanel.svelte';
   import ThemeToggle from '$lib/demo/ThemeToggle.svelte';
+  import Logo from '$lib/Logo.svelte';
 </script>
 
 <svelte:head>
@@ -22,11 +23,7 @@
 <div class="app container">
   <header>
     <h1 class="app-title">
-      <svg class="app-logo" viewBox="0 0 32 32" width="22" height="22" fill="currentColor" aria-hidden="true">
-        <path d="M4 4 L14 16 L4 28 Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-        <rect x="15.5" y="4" width="1" height="24" opacity="0.6" />
-        <path d="M18 4 h4 v4 h-4 Z M18 8 h8 v4 h-8 Z M18 12 h12 v8 h-12 Z M18 20 h8 v4 h-8 Z M18 24 h4 v4 h-4 Z" />
-      </svg>
+      <Logo class="app-logo" size={22} />
       VidCompare
     </h1>
     <div class="header-actions">
@@ -91,6 +88,11 @@
     gap: 8px;
     font-size: 16px;
     font-weight: 600;
+  }
+  /* .app-logo lives on the Logo child component's svg, so the selector must
+     stay fully global for Svelte not to prune it as unused. */
+  :global([data-theme='dark'] .app-logo) {
+    color: #c0c4cc;
   }
   .header-actions {
     display: flex;

@@ -1,4 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      svg {
+        color: #c0c4cc;
+      }
+    }
+  </style>
   <!-- smooth play icon (left), rounded corners via round-joined stroke -->
   <path d="M4 5 L13.5 16 L4 27 Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
   <!-- divider -->

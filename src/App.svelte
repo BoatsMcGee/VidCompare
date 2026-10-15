@@ -392,6 +392,9 @@
     font-size: 16px;
     font-weight: 600;
   }
+  :global([data-theme='dark']) .app-logo {
+    color: #c0c4cc;
+  }
   .header-actions {
     display: flex;
     gap: 8px;

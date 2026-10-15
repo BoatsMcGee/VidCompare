@@ -155,7 +155,7 @@
         </li>
       </ul>
       <Screenshot
-        file="options-groups.png"
+        file="options-groups-light.png"
         caption="Group tabs, side-aligned columns and the link toggle"
       />
       <p>
@@ -174,7 +174,7 @@
         restore it, or ✕ to delete it. Presets are stored in your settings directory and survive
         upgrades.
       </p>
-      <Screenshot file="presets-bar.png" caption="Saved presets above the options area" />
+      <Screenshot file="presets-bar-light.png" caption="Saved presets above the options area" />
     </section>
 
     <section id="custom-binary">
@@ -190,7 +190,7 @@
         video-compare's <code>--find-*</code> helper commands for you — enter a search term and it
         prints the matches in-app.
       </p>
-      <Screenshot file="find-helper-dialog.png" caption="Find-helper dialog" />
+      <Screenshot file="find-helper-dialog-light.png" caption="Find-helper dialog" />
     </section>
 
     <section id="portable-mode">

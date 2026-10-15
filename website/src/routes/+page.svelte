@@ -1,6 +1,7 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import { releasesUrl, upstreamUrl } from '$lib/site';
+  import { releasesUrl, shotUrl, upstreamUrl } from '$lib/site';
+  import Carousel from '$lib/Carousel.svelte';
   import Screenshot from '$lib/Screenshot.svelte';
 
   type OsId = 'windows' | 'linux' | 'macos';
@@ -148,8 +149,34 @@
       See the <a href="{base}/gallery/">full gallery</a>.
     </p>
     <div class="gallery">
-      <Screenshot file="main-window-light.png" caption="Main window" />
-      <Screenshot file="options-groups.png" caption="Side-aligned option columns" />
+      <Carousel slideCount={4} ariaLabel="App screenshots">
+        {#snippet children(i)}
+          {#if i === 3}
+            <figure class="cta-figure">
+              <a class="gallery-cta" href="{base}/gallery/">
+                <img
+                  class="cta-bg"
+                  src={shotUrl('file-panels-light.png')}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                />
+                <span class="cta-label">
+                  <span class="cta-title">See the full gallery</span>
+                  <span class="cta-sub">Every screen, light & dark</span>
+                </span>
+              </a>
+              <figcaption>Explore every screen in the full gallery</figcaption>
+            </figure>
+          {:else if i === 0}
+            <Screenshot file="main-window-light.png" caption="Main window" />
+          {:else if i === 1}
+            <Screenshot file="options-groups-light.png" caption="Side-aligned option columns" />
+          {:else}
+            <Screenshot file="compare-page-light.png" caption="Compare page" />
+          {/if}
+        {/snippet}
+      </Carousel>
     </div>
   </div>
 </section>
@@ -235,9 +262,69 @@
     color: var(--fg-secondary);
   }
   .gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
+    max-width: 860px;
+  }
+  .gallery :global(.shot-btn img),
+  .gallery :global(.placeholder-inner) {
+    aspect-ratio: 1920 / 937;
+  }
+  .cta-figure {
+    margin: 0;
+  }
+  .cta-figure figcaption {
+    font-size: 12px;
+    color: var(--fg-secondary);
+    margin-top: 6px;
+    text-align: center;
+  }
+  .gallery-cta {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1920 / 937;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-secondary);
+    overflow: hidden;
+    text-decoration: none;
+  }
+  .gallery-cta:hover {
+    text-decoration: none;
+  }
+  .gallery-cta:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .cta-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(6px);
+    opacity: 0.35;
+  }
+  .cta-label {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  .cta-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--fg);
+  }
+  .cta-sub {
+    font-size: 12px;
+    color: var(--fg-secondary);
   }
   .tabs {
     display: flex;
