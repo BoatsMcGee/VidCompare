@@ -47,18 +47,30 @@ jobs:
       - name: Export runner image version
         run: echo "ImageRunnerVersion=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
 
+      # The sidecar is dynamically linked against the system FFmpeg/SDL2, so
+      # the cache key must capture the exact library versions it was built
+      # against — not just the image label, which can stay the same while its
+      # package contents change. A stale entry then fails AppImage bundling
+      # with "Could not find dependency: libavformat.so.60".
+      - name: Resolve sidecar library fingerprint (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          fp=$(dpkg-query -W -f='${Package}=${Version}\n' \
+            libavformat-dev libavcodec-dev libavfilter-dev libavutil-dev \
+            libswscale-dev libswresample-dev libsdl2-dev libsdl2-ttf-dev \
+            2>/dev/null | sort | sha256sum | cut -d' ' -f1)
+          echo "SidecarLibFingerprint=${fp:-unknown}" >> "$GITHUB_ENV"
+      - name: Resolve sidecar library fingerprint (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          fp=$(brew list --versions ffmpeg sdl2 sdl2_ttf 2>/dev/null | sort | sha256sum | cut -d' ' -f1)
+          echo "SidecarLibFingerprint=${fp:-unknown}" >> "$GITHUB_ENV"
+
       - name: Cache sidecar
-        id: sidecar-cache
         uses: actions/cache@v4
         with:
           path: src-tauri/binaries
-          # The sidecar is built from source on Linux/macOS, so the cache
-          # must not outlive the runner image it was linked against: an
-          # ubuntu-latest image update can change the system FFmpeg soname
-          # (e.g. libavformat.so.60 -> .61) and linuxdeploy then fails with
-          # "Could not find dependency: libavformat.so.60". ImageRunnerVersion
-          # busts the cache when the image rolls.
-          key: sidecar-${{ matrix.platform }}-${{ env.ImageRunnerVersion }}-${{ hashFiles('sidecar-version.json') }}
+          key: sidecar-${{ matrix.platform }}-${{ env.ImageRunnerVersion }}-${{ env.SidecarLibFingerprint }}-${{ hashFiles('sidecar-version.json') }}
 
       # Tauri app build dependencies (Linux) — shared with ci.yml/e2e.yml.
       - name: Install Tauri build dependencies (Linux)
@@ -67,15 +79,24 @@ jobs:
 
       # Sidecar source-build dependencies (Linux/macOS) — upstream only
       # publishes a Windows prebuilt asset (see plan §10, hybrid sourcing).
+      #
+      # These must be installed on EVERY Linux/macOS run, not just on a
+      # sidecar cache miss: the sidecar is dynamically linked against the
+      # FFmpeg/SDL2 libraries, and linuxdeploy resolves those dependencies
+      # from the system when building the AppImage. Skipping the install on
+      # a cache hit leaves the cached binary's libraries absent, so bundling
+      # fails with "Could not find dependency: libavformat.so.60".
+      # Installing them also means the AppImage bundles its own copies and
+      # does not depend on the host's FFmpeg version.
       - name: Install sidecar build dependencies (Linux)
-        if: matrix.platform == 'linux' && steps.sidecar-cache.outputs.cache-hit != 'true'
+        if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config g++ make \
             libavformat-dev libavcodec-dev libavfilter-dev libavutil-dev \
             libswscale-dev libswresample-dev libsdl2-dev libsdl2-ttf-dev
       - name: Install sidecar build dependencies (macOS)
-        if: matrix.platform == 'macos' && steps.sidecar-cache.outputs.cache-hit != 'true'
+        if: matrix.platform == 'macos'
         run: brew install pkg-config ffmpeg sdl2 sdl2_ttf
 
       # Fetch the pinned sidecar (Windows downloads the verified release zip;
