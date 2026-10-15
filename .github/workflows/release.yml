@@ -144,8 +144,7 @@ jobs:
           # assets, tripping GitHub's secondary rate limit.
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/*/*.AppImage
-            src-tauri/target/${{ matrix.target }}/release/bundle/*/*.AppImage.tar.gz
-            src-tauri/target/${{ matrix.target }}/release/bundle/*/*.AppImage.tar.gz.sig
+            src-tauri/target/${{ matrix.target }}/release/bundle/*/*.AppImage.sig
             src-tauri/target/${{ matrix.target }}/release/bundle/*/*.deb
             src-tauri/target/${{ matrix.target }}/release/bundle/*/*.dmg
             src-tauri/target/${{ matrix.target }}/release/bundle/*/*.app.tar.gz
@@ -163,6 +162,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Required to dispatch the website rebuild via workflow_dispatch.
+      actions: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4

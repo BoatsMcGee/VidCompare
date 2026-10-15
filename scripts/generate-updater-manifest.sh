@@ -47,10 +47,12 @@ if [ -n "$win_nsis" ]; then
 fi
 
 linux_dir="artifacts/vidcompare-x86_64-unknown-linux-gnu"
-linux_ai=$(find "$linux_dir" -name '*.AppImage.tar.gz' ! -name '*.sig' | head -n1)
+# Tauri v2 signs the AppImage itself for updates (no .tar.gz wrapper): the
+# updater downloads the AppImage directly and verifies it against the .sig.
+linux_ai=$(find "$linux_dir" -name '*.AppImage' ! -name '*.sig' | head -n1)
 if [ -n "$linux_ai" ]; then
   platforms=$(jq --arg url "$base/$(basename "$linux_ai")" \
-                 --arg sig "$(find_sig x86_64-unknown-linux-gnu '*.AppImage.tar.gz')" \
+                 --arg sig "$(find_sig x86_64-unknown-linux-gnu '*.AppImage')" \
                  '. + {"linux-x86_64": {url: $url, signature: $sig}}' <<< "$platforms")
 fi
 
