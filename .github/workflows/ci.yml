@@ -46,6 +46,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The release pipeline reads the version from package.json (via
+      # scripts/resolve-release-version.sh) while Tauri bundles the version
+      # from tauri.conf.json — they must match or a tagged build ships as
+      # the wrong version.
+      - name: Check version consistency (package.json vs tauri.conf.json)
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          conf=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "$pkg" != "$conf" ]; then
+            echo "::error::package.json version ($pkg) != tauri.conf.json version ($conf)"
+            exit 1
+          fi
+          echo "versions match: $pkg"
       - uses: actions/setup-node@v4
         with:
           node-version: 22

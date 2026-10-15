@@ -2,10 +2,10 @@
   "profiles": [
     {
       "id": "video-compare-latest",
-      "upstreamVersion": "2025-01-01",
+      "upstreamVersion": "20261004",
       "minAppVersion": "0.1.0",
       "url": "https://github.com/BoatsMcGee/VidCompare/releases/latest/download/video-compare-latest.json",
-      "sha256": ""
+      "sha256": "3b46b2cfde95a21135ced5533ae7ca194370302b325695a0e868cf3397d9775e"
     }
   ]
 }

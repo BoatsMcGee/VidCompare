@@ -14,27 +14,24 @@
   const releases: Release[] = [
     {
       version: '0.1.0',
-      date: 'Unreleased',
-      summary: 'First public release — scaffold, file selection, option profiles and launch/logs.',
+      date: '2026-10-15',
+      summary:
+        'First public release — a cross-platform GUI launcher for pixop/video-compare: pick two videos, tune every option, launch — with the real video-compare window embedded in the app.',
       changes: [
-        { type: 'added', text: 'Tauri v2 + Svelte 5 + TypeScript (strict) application scaffold with typed IPC contract and settings store (M1).' },
-        { type: 'added', text: 'Light/dark/system theme system with persisted manual override, shared CSS design tokens (M1).' },
-        { type: 'added', text: 'CI workflow skeleton with frontend and Rust quality gates (M1).' },
-        { type: 'added', text: 'File panels for Reference (left) and Distorted (right) with sibling file listing after browsing (M2).' },
-        { type: 'added', text: 'Video extension filter with a “Show all files” toggle, file sizes and one-click reselection (M2).' },
-        { type: 'added', text: 'Native file dialogs and recent-folder tracking in settings (M2).' },
-        { type: 'added', text: 'Swap (⇄) button exchanging the left and right selections (M2).' },
-        { type: 'added', text: 'Unit tests for file/media helpers (M2).' },
-        { type: 'added', text: 'External option-profile engine: Zod parsing, lenient unknown-field handling, version guards (profileVersion / minAppVersion) and group fallback (M3).' },
-        { type: 'added', text: 'Full option field renderer set driven by the profile: bool, string, text, number, enum, enum-multi, path, size, time-offset, color, key-value-list, filter-chain, string-list and raw fallback (M3).' },
-        { type: 'added', text: 'Side-aware two-column options layout with 🔗 link toggles for pair options, including separateFlags and colon pair styles (M3).' },
-        { type: 'added', text: 'Group tabs, option search, active-options chip bar with one-click reset (M3).' },
-        { type: 'added', text: 'Exact argv builder with unit tests plus live command preview with copy button (M3).' },
-        { type: 'added', text: 'Binary resolution (custom path → bundled sidecar) with a source/version badge in the header (M5).' },
-        { type: 'added', text: 'Process launch with streaming stdout/stderr events and a session-tabbed in-app Output panel (M5).' },
-        { type: 'added', text: 'Find-helper dialog running video-compare --find-* commands in-app (M5).' },
-        { type: 'added', text: 'Multi-rendition input support with __ same-as-left placeholder and ::key=value per-video overrides in the argv builder (M5).' },
-        { type: 'added', text: 'Rolling, path-anonymized diagnostic logs (M5).' }
+        { type: 'added', text: 'Embedded video-compare window (Compare): the real video-compare window runs in-app with the full upstream featureset and every keyboard shortcut; an “Open in separate window” button is always available.' },
+        { type: 'added', text: 'File panels with drag & drop: drop a file or folder on either panel, browse via the inline path textbox or the native dialog; sibling media files are listed with sizes, a video extension filter and a “Show all files” toggle; Swap (⇄) exchanges the complete left/right state.' },
+        { type: 'added', text: 'Data-driven options UI: every video-compare option is rendered from external, versioned Option Profile JSON — grouped in tabs with search, a presets bar, an active-options chip bar with one-click reset, and side-aware Left/Right columns with 🔗 link toggles for shared values.' },
+        { type: 'added', text: 'Live command preview: exact argv builder with a copy button; multi-rendition inputs (__ same-as-left, ::key=value per-video overrides).' },
+        { type: 'added', text: 'Launch & logs: stdout and stderr stream into an in-app output panel; a Find-helper dialog runs --find-* commands in-app; rolling, path-anonymized diagnostic logs.' },
+        { type: 'added', text: 'Binary resolution: custom video-compare path or bundled sidecar (pinned by SHA-256), with a source/version badge and a warning when the binary and profile versions drift.' },
+        { type: 'added', text: 'Profile manager: bundled, downloaded and custom profiles with install-from-file; profiles are published as release artifacts.' },
+        { type: 'added', text: 'Auto-update: minisign-signed updater manifests served from GitHub Releases (artifacts themselves stay unsigned).' },
+        { type: 'added', text: 'Portable mode: a portable.flag next to the executable keeps settings, presets and logs in a Data\\ folder; Windows portable zips ship per release.' },
+        { type: 'added', text: 'Light/dark/system theme with a persisted manual override; i18n dictionary (English first, structure ready for translations).' },
+        { type: 'fixed', text: 'UX polish: Left/Right labels everywhere, file lists truncate long names instead of scrolling, the command preview wraps instead of overflowing, themed scrollbars, and non-blocking (async) binary/profile resolution and folder listing.' },
+        { type: 'fixed', text: 'Profile upstream.version now matches the shipped video-compare binary (20261004); compact date versions compare correctly.' },
+        { type: 'changed', text: 'The in-process libmpv embed approach was removed in favor of embedding the real video-compare window (full upstream UX without vendoring libmpv).' },
+        { type: 'changed', text: 'Layout compaction: the video-compare output panel appears only after a launch produces logs; the Compare section is always rendered.' }
       ]
     }
   ];
