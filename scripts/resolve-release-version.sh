@@ -14,7 +14,12 @@
 
 set -euo pipefail
 
-nightly="${1:?usage: resolve-release-version.sh <nightly:true|false> <run_number>}"
+# Tag pushes have no `inputs` context, so release.yml passes an empty string
+# for nightly — treat that as a stable build.
+nightly="${1:-}"
+if [ -z "$nightly" ]; then
+  nightly="false"
+fi
 run_number="${2:?usage: resolve-release-version.sh <nightly:true|false> <run_number>}"
 
 base=$(node -p "require('./package.json').version")
