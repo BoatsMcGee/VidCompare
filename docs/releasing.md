@@ -37,17 +37,22 @@ Before the first tagged release:
 
 ## 1. Version bump
 
-VidCompare uses semver. Bump the version in **both**:
+VidCompare uses semver. Bump the version in **all three**:
 
-- `package.json` → `"version"`
-- `src-tauri/tauri.conf.json` → `app.version`
+- `package.json` → `"version"` — the release pipeline reads this via
+  `scripts/resolve-release-version.sh`
+- `src-tauri/tauri.conf.json` → `app.version` — what Tauri bundles and names
+  installers with
+- `src-tauri/Cargo.toml` → `[package] version` — compiled in as
+  `env!("CARGO_PKG_VERSION")`, which is what the app reports in its header and
+  logs, and what profile `minAppVersion` guards compare against
 
-CI fails if the two drift apart (the release pipeline reads the version from
-`package.json` via `scripts/resolve-release-version.sh`, while Tauri bundles
-the version from `tauri.conf.json`).
+CI fails if any of the three drift apart. `Cargo.lock` and `package-lock.json`
+record the version too — refresh them with `cargo update -p vidcompare
+--precise <version>` / `npm install --package-lock-only`.
 
 The app version is surfaced in the header and logs, and is checked against
-profile `minAppVersion` guards, so both must move together.
+profile `minAppVersion` guards, so all three must move together.
 
 ## 2. Sidecar version
 
@@ -147,7 +152,8 @@ Nightly runs reuse the release build matrix but:
 - [ ] E2E green (browser-mode, mocked IPC — `e2e.yml`)
 - [ ] Profile regenerated and diff reviewed against the new sidecar
 - [ ] `sidecar-version.json` SHAs verified (video-compare)
-- [ ] Version bumped in `package.json` + `tauri.conf.json` (CI gate enforces the match)
+- [ ] Version bumped in `package.json` + `src-tauri/tauri.conf.json` +
+      `src-tauri/Cargo.toml` (CI gate enforces all three match)
 - [ ] `CHANGELOG.md` updated; website changelog
       (`website/src/routes/docs/changelog/+page.svelte`) updated
 - [ ] `profiles/profiles-index.json` metadata current (`upstreamVersion`,
@@ -164,9 +170,10 @@ Nightly runs reuse the release build matrix but:
 - [ ] Release workflow green on all three OSes; release published as a
       **pre-release** (not "Latest")
 - [ ] Artifacts present: NSIS `-setup.exe` + `.sig`, `.deb`, `.rpm`,
-      AppImage + `.AppImage.tar.gz` + `.sig`, `.dmg`, `.app.tar.gz` + `.sig`,
+      AppImage + `.AppImage.sig`, `.dmg`, `.app.tar.gz` + `.sig`,
       Windows portable zip, `video-compare-latest.json`,
-      `profiles-index.json`, `latest.json`
+      `profiles-index.json`, `latest.json` (Tauri v2 signs the AppImage
+      directly — there is no `.AppImage.tar.gz`)
 - [ ] Smoke-test: portable zip extracts and runs (sidecar launches, portable
       badge shows, `Data\` used); NSIS install reports the right version
 - [ ] On failure: fix on `main`, delete the beta tag + release, re-tag as

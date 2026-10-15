@@ -134,7 +134,11 @@ pub fn process_exit_code(pid: u32) -> Option<u32> {
         if !ok {
             return None;
         }
-        if code == STILL_ACTIVE { None } else { Some(code) }
+        if code == STILL_ACTIVE {
+            None
+        } else {
+            Some(code)
+        }
     }
 }
 

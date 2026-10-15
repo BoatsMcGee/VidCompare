@@ -1,6 +1,6 @@
 [package]
 name = "vidcompare"
-version = "0.1.0"
+version = "0.1.1"
 description = "VidCompare — GUI launcher for video-compare"
 authors = ["VidCompare contributors"]
 license = "GPL-3.0-only"

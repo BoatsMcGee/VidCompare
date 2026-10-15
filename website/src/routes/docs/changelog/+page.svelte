@@ -13,6 +13,18 @@
 
   const releases: Release[] = [
     {
+      version: '0.1.1',
+      date: '2026-10-15',
+      summary:
+        'Patch release fixing embedded compare on freshly installed builds, and shipping the real VidCompare application icons.',
+      changes: [
+        { type: 'fixed', text: 'Embedded compare now works on a freshly installed or extracted build. The window-wait timeout was 5 s, but a first-ever launch of the sidecar and its ~278 MB of FFmpeg/SDL2 libraries takes longer while they are cold-loaded and scanned; it now waits up to 30 s and reports the sidecar’s exit code instead of a bare timeout.' },
+        { type: 'fixed', text: 'The Compare wait no longer blocks the UI thread, so the app stays responsive while the embedded window starts.' },
+        { type: 'changed', text: 'Warm-up: the sidecar is started once in the background as soon as both files are selected, so the first Compare does not pay the cold-start cost.' },
+        { type: 'changed', text: 'Application icons are now the VidCompare mark rather than the Tauri default, including the Windows installer and uninstaller icons and the website favicon. The README gained the icon as a hero image.' }
+      ]
+    },
+    {
       version: '0.1.0',
       date: '2026-10-15',
       summary:

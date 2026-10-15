@@ -6,6 +6,8 @@ All notable changes to VidCompare are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-15
+
 ### Fixed
 
 - **Embedded compare failed on a freshly installed or extracted build**
