@@ -6,6 +6,34 @@ All notable changes to VidCompare are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Embedded compare failed on a freshly installed or extracted build**
+  ("no window found for pid …", falling back to an external window) while
+  `tauri dev` always worked. The window-wait timeout was 5 s, but the first
+  compare after a fresh install takes longer than that: the sidecar and its
+  ~278 MB of FFmpeg/SDL2 libraries are being cold-loaded and scanned for the
+  first time. Subsequent launches were fast (~0.3 s), which is why retrying
+  and every dev run appeared to work.
+  - The wait now allows up to 30 s and fails fast with the child's exit code
+    when the sidecar dies before opening a window, instead of reporting a
+    timeout.
+  - `embed_launch` is now `async` so the wait runs off the UI thread — a sync
+    Tauri command would have frozen the window for the whole timeout.
+- **Updater/loader warm-up**: a new `warm_sidecar` command runs the sidecar
+  once (`--version`) as soon as both inputs are selected, so the first Compare
+  does not pay the cold-start cost. Verified on a fresh install: warm-up
+  0.65 s, first embed 0.67 s.
+
+### Changed
+
+- **Application icons** are now the VidCompare mark instead of the Tauri
+  default — all platform icons (`.ico`, `.icns`, PNGs, Windows store logos)
+  are regenerated from `src-tauri/icons/icon.svg`. The NSIS installer and
+  uninstaller now use the app icon too. `public/favicon.svg` was an unrelated
+  template graphic and now matches `icon.svg`. The README gained the icon as
+  a hero image.
+
 ## [0.1.0] - 2026-10-15
 
 First public release. A cross-platform GUI launcher for

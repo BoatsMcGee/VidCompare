@@ -30,6 +30,7 @@ flowchart LR
 | `embed_launch` | `(binary, args, rect) → { id, embedded, reason }` | Spawns video-compare and captures its window over `rect`; `embedded` is false when capture is unsupported/failed |
 | `embed_set_rect` | `(id, rect, visible) → ()` | Moves/shows/hides the captured window; identical rects are deduped backend-side |
 | `embed_release` | `(id) → ()` | Detaches the captured window (restores ownership) |
+| `warm_sidecar` | `(binary) → ()` | Runs the sidecar once (`--version`) to pre-load its shared libraries before the first Compare |
 
 ## Plugins
 
@@ -47,14 +48,22 @@ its own process, renderer, and keyboard handling, so the entire upstream
 featureset and every keyboard shortcut work unchanged.
 
 - **Capture (Windows)**: `commands::embed_window` finds the child's window
-  with `EnumWindows` + `GetWindowThreadProcessId` (retrying briefly after
-  spawn), strips the caption/borders, sets `WS_EX_TOOLWINDOW`, and changes
-  ownership via `SetWindowLongPtrW(GWL_HWNDPARENT)`. Owned windows always
-  sit above their owner's children (including the WebView2 compositor), so
-  the captured window reliably covers the placeholder and stays above the
-  app while the page scrolls. `GWL_HWNDPARENT` is pointer-sized — the
-  32-bit `SetWindowLongW` truncates the owner HWND on 64-bit Windows and
-  silently breaks ownership.
+  with `EnumWindows` + `GetWindowThreadProcessId` (retrying after spawn),
+  strips the caption/borders, sets `WS_EX_TOOLWINDOW`, and changes ownership
+  via `SetWindowLongPtrW(GWL_HWNDPARENT)`. Owned windows always sit above
+  their owner's children (including the WebView2 compositor), so the
+  captured window reliably covers the placeholder and stays above the app
+  while the page scrolls. `GWL_HWNDPARENT` is pointer-sized — the 32-bit
+  `SetWindowLongW` truncates the owner HWND on 64-bit Windows and silently
+  breaks ownership.
+- **Cold start**: the window wait allows up to 30 s. A freshly installed or
+  extracted build cold-loads (and first-touches for antimalware) the
+  sidecar's ~278 MB of FFmpeg/SDL2 libraries, which can exceed a few
+  seconds; later launches reuse the cache and take ~0.3 s. `embed_launch` is
+  `async` so this wait never blocks the UI thread, and it fails fast with
+  the child's exit code if the sidecar dies before opening a window. The
+  `warm_sidecar` command runs the sidecar once (`--version`) as soon as both
+  inputs are selected, moving the first-run cost off the Compare path.
 - **Tracking**: coordinates are physical pixels relative to the client area;
   the frontend measures CSS rects and scales by `devicePixelRatio`, forwarded
   per animation frame **and** from capture-phase `scroll`/`resize` listeners

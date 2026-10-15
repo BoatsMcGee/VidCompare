@@ -43,11 +43,26 @@ pub fn embeddable() -> bool {
     true
 }
 
+/// How long to wait for the child to create its top-level window.
+///
+/// The first launch on a cold system must page in ~235 MB of FFmpeg DLLs
+/// before video-compare opens its window; measured at ~5.6 s on a warm disk
+/// and longer when an on-access scanner inspects each DLL. Subsequent
+/// launches reuse the file cache and take ~0.3 s. The wait therefore has to
+/// tolerate a slow first start instead of failing at a couple of seconds.
+const WINDOW_WAIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
 /// Find the top-level window of a process by PID. Returns the first visible
-/// window with a title (video-compare names its window), retrying briefly
-/// because the window may not exist yet right after spawn.
+/// window with a title (video-compare names its window), retrying until the
+/// window appears or the process exits without creating one.
 pub fn find_window_by_pid(pid: u32, timeout_ms: u32) -> Result<HWND, String> {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms as u64);
+    let timeout = if timeout_ms == 0 {
+        WINDOW_WAIT_TIMEOUT
+    } else {
+        std::time::Duration::from_millis(timeout_ms as u64)
+    };
+    let deadline = std::time::Instant::now() + timeout;
+    let started = std::time::Instant::now();
     loop {
         let found: Option<HWND>;
         unsafe {
@@ -55,10 +70,28 @@ pub fn find_window_by_pid(pid: u32, timeout_ms: u32) -> Result<HWND, String> {
             found = take_found_window();
         }
         if let Some(hwnd) = found {
+            log::info!(
+                "embed: video-compare window found after {:.2}s (pid {pid})",
+                started.elapsed().as_secs_f32()
+            );
             return Ok(hwnd);
         }
+        // Fail fast when the child died (bad arguments, missing codec, …):
+        // waiting out the full timeout would hide the real cause.
+        if let Some(code) = process_exit_code(pid) {
+            return Err(format!(
+                "video-compare exited (code {code}) before opening a window"
+            ));
+        }
         if std::time::Instant::now() >= deadline {
-            return Err(format!("no window found for pid {pid}"));
+            log::warn!(
+                "embed: no window for pid {pid} after {:.1}s",
+                started.elapsed().as_secs_f32()
+            );
+            return Err(format!(
+                "no window found for pid {pid} (waited {:.1}s)",
+                started.elapsed().as_secs_f32()
+            ));
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
@@ -83,6 +116,26 @@ unsafe extern "system" fn enum_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
         }
     }
     BOOL(1)
+}
+
+/// Returns `Some(exit_code)` if the process has exited, `None` if it is
+/// still running (or could not be queried).
+pub fn process_exit_code(pid: u32) -> Option<u32> {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{
+        GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    const STILL_ACTIVE: u32 = 259;
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+        let mut code: u32 = 0;
+        let ok = GetExitCodeProcess(handle, &mut code).is_ok();
+        let _ = CloseHandle(handle);
+        if !ok {
+            return None;
+        }
+        if code == STILL_ACTIVE { None } else { Some(code) }
+    }
 }
 
 fn take_found_window() -> Option<HWND> {

@@ -65,6 +65,7 @@ export const ipc = {
     invoke<FileEntry[]>('list_media_files', { dir, includeAll }),
   resolveBinary: (customPath?: string) =>
     invoke<BinaryInfo>('resolve_binary', { customPath: customPath ?? null }),
+  warmSidecar: (binary: string) => invoke<void>('warm_sidecar', { binary }),
   runInfoCommand: (kind: string, term: string) =>
     invoke<string>('run_info_command', { kind, term }),
   launch: (binary: string, args: string[]) =>

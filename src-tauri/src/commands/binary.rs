@@ -9,6 +9,70 @@ pub struct BinaryInfo {
     pub version: String,
 }
 
+/// Warm the sidecar so the user's first Compare is not slow.
+///
+/// Runs the binary in a mode that exits immediately (`--version`). The
+/// process still resolves its full import table on start, so the OS loader
+/// maps the ~278 MB of FFmpeg/SDL2 libraries and the first-run antimalware
+/// scan of those files completes — off the critical path of the first
+/// Compare. Measured cold read of the payload is only ~0.5 s, so this is
+/// about the loader and first-touch scan, not raw I/O; an earlier version
+/// that merely read the files was dropped as ineffective.
+///
+/// Best-effort and time-bounded: a failure or slow run just means the first
+/// Compare stays as slow as before.
+#[tauri::command]
+pub async fn warm_sidecar(binary: String) -> Result<(), String> {
+    let path = PathBuf::from(&binary);
+    if !path.is_file() {
+        return Err(format!("Binary not found: {}", path.display()));
+    }
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let started = std::time::Instant::now();
+        let mut child = match Command::new(&path)
+            .arg("--version")
+            // Discard output: piping without reading could block the child
+            // once the pipe buffer fills.
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .stdin(std::process::Stdio::null())
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                log::debug!("warm_sidecar: could not start {}: {e}", path.display());
+                return;
+            }
+        };
+
+        // Bounded wait so a hung binary cannot pin a worker thread.
+        let deadline = started + std::time::Duration::from_secs(60);
+        loop {
+            match child.try_wait() {
+                Ok(Some(_)) => break,
+                Ok(None) if std::time::Instant::now() >= deadline => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    log::warn!("warm_sidecar: timed out after 60s; killed");
+                    return;
+                }
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(20)),
+                Err(e) => {
+                    log::debug!("warm_sidecar: wait failed: {e}");
+                    return;
+                }
+            }
+        }
+        log::info!(
+            "warm_sidecar: loader warm-up finished in {:.2}s",
+            started.elapsed().as_secs_f32()
+        );
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn resolve_binary(custom_path: Option<String>) -> Result<BinaryInfo, String> {
     let is_custom = custom_path.is_some();

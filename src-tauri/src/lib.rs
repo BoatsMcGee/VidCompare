@@ -11,11 +11,18 @@ pub fn run() {
         // logger on registration and would otherwise claim the global logger.
         .plugin(
             tauri_plugin_log::Builder::default()
-                .level(if cfg!(debug_assertions) {
-                    log::LevelFilter::Info
-                } else {
-                    log::LevelFilter::Warn
-                })
+                // VIDCOMPARE_LOG_LEVEL overrides the compiled default so a
+                // release build can be diagnosed without a debug rebuild.
+                .level(
+                    std::env::var("VIDCOMPARE_LOG_LEVEL")
+                        .ok()
+                        .and_then(|v| v.parse::<log::LevelFilter>().ok())
+                        .unwrap_or(if cfg!(debug_assertions) {
+                            log::LevelFilter::Info
+                        } else {
+                            log::LevelFilter::Warn
+                        }),
+                )
                 .build(),
         )
         .plugin(tauri_plugin_wdio::init())
@@ -24,6 +31,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::files::list_media_files,
             commands::binary::resolve_binary,
+            commands::binary::warm_sidecar,
             commands::binary::run_info_command,
             commands::launch::launch,
             commands::launch::kill,

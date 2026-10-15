@@ -127,6 +127,7 @@
     try {
       binaryInfo = await ipc.resolveBinary(appState.settings?.custom_binary_path ?? undefined);
       if (error?.startsWith('Binary not found')) error = null;
+      void ipc.warmSidecar(binaryInfo.path).catch(() => undefined);
     } catch (e) {
       binaryInfo = null;
       error = `Binary not found: ${e}`;
@@ -195,6 +196,17 @@
   let canCompare = $derived(
     !!appState.leftFile && !!appState.rightFiles[0] && !!appState.profile && !!binaryInfo,
   );
+
+  // Warm the sidecar once both inputs are chosen: that is the earliest point
+  // the user is plausibly heading for Compare, and it keeps first-run loader
+  // and antimalware costs off the Compare path. Runs once per binary.
+  let warmedBinary = $state<string | null>(null);
+  $effect(() => {
+    if (!canCompare || !binaryInfo) return;
+    if (warmedBinary === binaryInfo.path) return;
+    warmedBinary = binaryInfo.path;
+    void ipc.warmSidecar(binaryInfo.path).catch(() => undefined);
+  });
 
   function startCompare() {
     if (!canCompare) return;

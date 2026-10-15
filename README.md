@@ -1,12 +1,23 @@
-# VidCompare
+<h1 align="center">
+  <img src="src-tauri/icons/icon.svg" alt="VidCompare" width="120" height="120"><br>
+  VidCompare
+</h1>
 
-A fast, lightweight, cross-platform GUI launcher for [pixop/video-compare](https://github.com/pixop/video-compare).
+<p align="center">
+  <a href="https://github.com/BoatsMcGee/VidCompare/actions/workflows/ci.yml"><img src="https://github.com/BoatsMcGee/VidCompare/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/BoatsMcGee/VidCompare/actions/workflows/release.yml"><img src="https://github.com/BoatsMcGee/VidCompare/actions/workflows/release.yml/badge.svg" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0--only-blue.svg" alt="License: GPL-3.0-only"></a>
+</p>
 
-[![CI](https://github.com/BoatsMcGee/VidCompare/actions/workflows/ci.yml/badge.svg)](https://github.com/BoatsMcGee/VidCompare/actions/workflows/ci.yml)
-[![Release](https://github.com/BoatsMcGee/VidCompare/actions/workflows/release.yml/badge.svg)](https://github.com/BoatsMcGee/VidCompare/actions/workflows/release.yml)
-[![License: GPL-3.0-only](https://img.shields.io/badge/License-GPL--3.0--only-blue.svg)](LICENSE)
+<p align="center">
+  A fast, lightweight, cross-platform GUI launcher for
+  <a href="https://github.com/pixop/video-compare">pixop/video-compare</a>.
+</p>
 
-**[Live demo](https://boatsmcgee.github.io/VidCompare/demo)** — an interactive simulation of the app UI, no install required.
+<p align="center">
+  <a href="https://boatsmcgee.github.io/VidCompare/demo"><b>Live demo</b></a>
+  — an interactive simulation of the app UI, no install required.
+</p>
 
 > [!NOTE]
 > This project is built entirely by agentic LLMs and is not ready for production.

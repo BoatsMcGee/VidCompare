@@ -76,6 +76,13 @@ describe('ipc', () => {
     expect(invokeMock).toHaveBeenCalledWith('fetch_profiles_index');
   });
 
+  it('warmSidecar invokes the loader warm-up command', async () => {
+    await ipc.warmSidecar('C:\\Tools\\VidCompare\\video-compare.exe');
+    expect(invokeMock).toHaveBeenCalledWith('warm_sidecar', {
+      binary: 'C:\\Tools\\VidCompare\\video-compare.exe',
+    });
+  });
+
   it('propagates rejections from invoke', async () => {
     invokeMock.mockRejectedValue(new Error('boom'));
     await expect(ipc.listMediaFiles('/x', false)).rejects.toThrow('boom');

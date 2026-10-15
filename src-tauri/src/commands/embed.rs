@@ -71,8 +71,13 @@ pub struct EmbedLaunchResult {
 }
 
 /// Spawn video-compare and embed its window over the given surface rect.
+///
+/// Async on purpose: waiting for the child's window can take several seconds
+/// on a cold first launch (~235 MB of FFmpeg DLLs plus graphics-driver
+/// init), and a *sync* Tauri command runs on the UI thread — it would freeze
+/// the window for the whole wait. The blocking poll runs on a worker thread.
 #[tauri::command]
-pub fn embed_launch(
+pub async fn embed_launch(
     app: tauri::AppHandle,
     launch_state: tauri::State<'_, LaunchState>,
     embed_state: tauri::State<'_, EmbedState>,
@@ -87,11 +92,24 @@ pub fn embed_launch(
         let window = app
             .get_webview_window("main")
             .ok_or("main window missing")?;
-        let owner = window.hwnd().map_err(|e| e.to_string())?;
-        match embed_window::find_window_by_pid(handle.pid, 5000).and_then(|hwnd| {
-            let captured = embed_window::capture_window(owner, hwnd);
-            captured.map(|()| hwnd)
-        }) {
+        // HWND is a raw pointer (not Send), so carry it across the await as
+        // isize and rebuild the handle on this side.
+        let owner_raw = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
+        let pid = handle.pid;
+
+        // 0 = use the module default (WINDOW_WAIT_TIMEOUT).
+        let found = tauri::async_runtime::spawn_blocking(move || {
+            embed_window::find_window_by_pid(pid, 0).map(|hwnd| hwnd.0 as isize)
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+
+        let owner = windows::Win32::Foundation::HWND(owner_raw as *mut std::ffi::c_void);
+
+        match found
+            .map(|raw| windows::Win32::Foundation::HWND(raw as *mut std::ffi::c_void))
+            .and_then(|hwnd| embed_window::capture_window(owner, hwnd).map(|()| hwnd))
+        {
             Ok(hwnd) => {
                 let aspect = embed_window::window_aspect(hwnd);
                 if let Err(e) =
