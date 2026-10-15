@@ -104,8 +104,12 @@ jobs:
       # NO_STRIP: linuxdeploy's strip step fails on modern ELF .relr.dyn
       # relocation sections (tauri-apps/tauri#14796) — the maintainer-
       # confirmed workaround is to skip stripping during AppImage bundling.
+      # --verbose: at the default log level the bundler swallows linuxdeploy's
+      # stderr and reports only "failed to run linuxdeploy"; verbose both
+      # surfaces the real error and is reported to fix the bundling outright
+      # (tauri-apps/tauri#14796).
       - name: Build app
-        run: npx tauri build --target ${{ matrix.target }} --config '{"version":"${{ steps.version.outputs.version }}"}'
+        run: npx tauri build --verbose --target ${{ matrix.target }} --config '{"version":"${{ steps.version.outputs.version }}"}'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
