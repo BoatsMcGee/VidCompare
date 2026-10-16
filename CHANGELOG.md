@@ -6,6 +6,14 @@ All notable changes to VidCompare are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Compare page is now chrome-free.** The banner with the Back button, the
+  "Compare" heading and the "embedded" status are gone — the page is only the
+  embed surface. The back button moved to the app header, left of the logo,
+  and the Compare button is hidden while on the Compare page (you are already
+  there).
+
 ### Fixed
 
 - **A terminal window no longer opens when the app launches, when both files
@@ -16,6 +24,10 @@ All notable changes to VidCompare are documented here. The format follows
   process spawns now pass `CREATE_NO_WINDOW`, so the sidecar runs with no
   console at all (its output is captured through pipes and its SDL window is
   a normal GUI window).
+- **Embedding failure now returns to the main page** instead of stranding the
+  user on an empty Compare page. The page only exists to isolate the embedded
+  surface, so when capture fails the child is killed and the user lands back
+  where the "Launch in separate window" fallback lives.
 
 ## [0.1.1] - 2026-10-15
 

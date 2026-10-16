@@ -5,6 +5,7 @@
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { appState } from './lib/state/app.svelte';
   import { ipc } from './lib/ipc';
+  import { t } from './lib/i18n/messages';
   import { parseProfile } from './lib/options/profile';
   import { buildArgs } from './lib/options/args';
   import { profileMatchesBinary } from './lib/state/version';
@@ -248,6 +249,17 @@
 
 <div class="app">
   <header>
+    {#if appState.view === 'compare'}
+      <button
+        class="back-btn"
+        onclick={() => (appState.view = 'setup')}
+        title={t('compare.back')}
+        aria-label={t('compare.back')}
+        data-testid="compare-back"
+      >
+        ←
+      </button>
+    {/if}
     <h1 class="app-title">
       <svg class="app-logo" viewBox="0 0 32 32" width="22" height="22" fill="currentColor" aria-hidden="true">
         <path d="M4 4 L14 16 L4 28 Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
@@ -264,7 +276,9 @@
         <span class="badge badge-neutral">profile · {appState.profile.upstream.version}</span>
       {/if}
       <ThemeToggle />
-      <CompareSplitButton disabled={!canCompare} onCompare={startCompare} onLaunch={launch} />
+      {#if appState.view !== 'compare'}
+        <CompareSplitButton disabled={!canCompare} onCompare={startCompare} onLaunch={launch} />
+      {/if}
       <button onclick={() => (appState.showSettings = true)}>Settings</button>
     </div>
   </header>
@@ -403,6 +417,25 @@
     gap: 8px;
     font-size: 16px;
     font-weight: 600;
+  }
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    margin-right: 4px;
+    font-size: 15px;
+    line-height: 1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .back-btn:hover {
+    background: var(--bg-secondary);
   }
   :global([data-theme='dark']) .app-logo {
     color: #c0c4cc;

@@ -15,23 +15,24 @@
    * and keyboard handling — the full upstream featureset and shortcuts work
    * unchanged. A rAF loop forwards the surface geometry (physical pixels)
    * so the captured window tracks layout changes. When the child exits, the
-   * page returns to setup automatically. When capture fails or is
-   * unsupported, the surface explains why and stays put so the user can go
-   * back and launch externally instead.
+   * page returns to setup automatically.
+   *
+   * The page deliberately has no chrome of its own: the app header carries
+   * the back button, and this view exists only to isolate the embedded
+   * surface. If embedding fails there is nothing to show here, so we return
+   * to setup and let the user launch externally instead.
    */
   let { binaryPath }: { binaryPath?: string | null } = $props();
 
   let embedId = $state<string | null>(null);
-  let embedFailed = $state<string | null>(null);
-  // Child process id regardless of capture success, so Back/unmount can
-  // always kill it — including the external-window fallback.
+  // Child process id regardless of capture success, so unmount can always
+  // kill it — including the external-window fallback.
   let childId: string | null = null;
 
   let surfaceEl = $state<HTMLDivElement | null>(null);
 
   let leftFile = $derived(appState.leftFile);
   let rightFile = $derived(appState.rightFiles[0] ?? null);
-  let canCompare = $derived(!!leftFile && !!rightFile);
 
   // Aspect ratio (w/h) of the captured video-compare window, reported by
   // the backend at capture time. The surface is letterboxed to this so the
@@ -72,22 +73,29 @@
 
   async function compare() {
     if (!leftFile || !rightFile || !appState.profile) return;
-    embedFailed = null;
     try {
       const rect = measure(surfaceEl);
       if (!rect) return;
       const args = buildArgs(appState.buildState, appState.profile);
       const result = await ipc.embedLaunch(binaryPath ?? '', args, rect);
       childId = result.id;
-      embedId = result.embedded ? result.id : null;
-      if (result.embedded && result.aspect && result.aspect > 0) {
+      if (!result.embedded) {
+        // Nothing to show on this page without the captured window: kill the
+        // child we just started and go back so the user can launch it
+        // externally from the main page.
+        stopEmbed();
+        appState.view = 'setup';
+        return;
+      }
+      embedId = result.id;
+      if (result.aspect && result.aspect > 0) {
         contentAspect = result.aspect;
       }
-      if (!result.embedded) {
-        embedFailed = result.reason ?? 'window capture failed';
-      }
-    } catch (e) {
-      embedFailed = String(e);
+    } catch {
+      // Same reasoning as a failed capture: this page has no purpose without
+      // the embedded window.
+      stopEmbed();
+      appState.view = 'setup';
     }
   }
 
@@ -170,31 +178,19 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<section class="compare-page" aria-label={t('compare.title')}>
-  <header class="compare-bar">
-    <button class="back" onclick={back} data-testid="compare-back">{t('compare.back')}</button>
-    <h1>{t('compare.title')}</h1>
-    {#if embedId}
-      <span class="status" data-testid="embed-active">{t('compare.embedded')}</span>
-    {/if}
-  </header>
-
+<section class="compare-page" aria-label={t('compare.surfaceRole')}>
   <div
     class="surface"
     data-testid="surface"
     bind:this={surfaceEl}
     role="application"
     aria-roledescription={t('compare.surfaceRole')}
-    aria-label={t('compare.title')}
+    aria-label={t('compare.surfaceRole')}
   >
-    {#if embedFailed}
-      <p class="error" role="alert">{embedFailed}</p>
-    {:else if embedId}
+    {#if embedId}
       <!-- captured video-compare window renders here -->
     {:else}
-      <span class="placeholder">
-        {canCompare ? t('compare.starting') : t('compare.needBothFiles')}
-      </span>
+      <span class="placeholder">{t('compare.starting')}</span>
     {/if}
   </div>
 </section>
@@ -206,28 +202,6 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
-  }
-  .compare-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 16px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
-  }
-  .compare-bar h1 {
-    font-size: 13px;
-    font-weight: 600;
-  }
-  .status {
-    font-size: 11px;
-    color: var(--success);
-    margin-left: auto;
-  }
-  .error {
-    font-size: 12px;
-    color: var(--danger);
-    padding: 0 8px;
   }
   .surface {
     position: relative;

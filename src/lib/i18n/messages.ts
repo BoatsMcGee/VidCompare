@@ -41,11 +41,9 @@ export const messages = {
     title: 'Compare',
     back: '← Back',
     starting: 'Starting…',
-    embedded: 'embedded',
     launchExternal: 'Launch in separate window',
     surfaceRole: 'Embedded video-compare window',
     readyHint: 'video-compare will run embedded here — full keyboard shortcuts supported.',
-    needBothFiles: 'Select both a left and a right file to compare.',
   },
   options: {
     search: '🔍 Search options…',

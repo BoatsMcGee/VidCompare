@@ -67,16 +67,16 @@ describe('CompareView page', () => {
     expect(binary).toBe('C:\\bin\\video-compare.exe');
     expect(Array.isArray(args)).toBe(true);
     expect(typeof rect.width).toBe('number');
-    await waitFor(() => screen.getByTestId('embed-active'));
+    await waitFor(() => expect(screen.queryByText(/starting/i)).toBeNull());
   });
 
   it('does not launch and shows the hint when files are missing', async () => {
     render(CompareView);
-    await waitFor(() => screen.getByText(/select both a left and a right file/i));
+    await waitFor(() => screen.getByText(/starting/i));
     expect(embedLaunch).not.toHaveBeenCalled();
   });
 
-  it('shows the failure reason when capture fails', async () => {
+  it('returns to setup when capture fails', async () => {
     embedLaunch.mockResolvedValue({
       id: 'embed-1',
       started_at: 1,
@@ -87,22 +87,23 @@ describe('CompareView page', () => {
     });
     selectFiles();
     render(CompareView);
-    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
-    expect(screen.getByRole('alert').textContent).toContain('no window found');
-    expect(appState.view).toBe('compare');
+    await waitFor(() => expect(appState.view).toBe('setup'));
+    // The child we just started must not be left running.
+    await waitFor(() => expect(kill).toHaveBeenCalledWith('embed-1'));
+    expect(embedRelease).toHaveBeenCalledWith('embed-1');
   });
 
-  it('shows an error when the launch command rejects', async () => {
+  it('returns to setup when the launch command rejects', async () => {
     embedLaunch.mockRejectedValue(new Error('boom'));
     selectFiles();
     render(CompareView);
-    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    await waitFor(() => expect(appState.view).toBe('setup'));
   });
 
-  it('returns to setup when the Back button is clicked', async () => {
+  it('returns to setup on Escape', async () => {
     selectFiles();
     render(CompareView);
-    await fireEvent.click(screen.getByTestId('compare-back'));
+    await fireEvent.keyDown(window, { key: 'Escape' });
     expect(appState.view).toBe('setup');
   });
 
@@ -135,7 +136,7 @@ describe('CompareView page', () => {
     selectFiles();
     render(CompareView);
     await waitFor(() => expect(embedLaunch).toHaveBeenCalled());
-    await fireEvent.click(screen.getByTestId('compare-back'));
+    await fireEvent.keyDown(window, { key: 'Escape' });
     expect(appState.view).toBe('setup');
     await waitFor(() => expect(kill).toHaveBeenCalledWith('embed-1'));
   });
@@ -163,7 +164,7 @@ describe('CompareView page', () => {
 
   it('has no accessibility violations', async () => {
     const { container } = render(CompareView);
-    await waitFor(() => screen.getByTestId('compare-back'));
+    await waitFor(() => screen.getByTestId('surface'));
     await expectNoAxeViolations(container);
   });
 });

@@ -74,8 +74,10 @@ featureset and every keyboard shortcut work unchanged.
   `SWP_ASYNCWINDOWPOS` keeps it tracking the scroll without waiting for the
   app's paint cycle.
 - **Fallback**: when capture fails or is unsupported, `embed_launch` returns
-  `embedded: false` with a reason and the child runs in its own window — the
-  same behavior as the Launch button. Non-Windows builds compile a stub
+  `embedded: false` with a reason. The frontend then kills the child it just
+  started and returns to the setup view — the Compare page has nothing to
+  show without the captured window, and the "Launch in separate window"
+  fallback lives on the main page. Non-Windows builds compile a stub
   (`embed_window_stub.rs`) where embedding is disabled (macOS forbids
   cross-process reparenting; Wayland lacks a stable foreign-surface protocol
   — see `reports/research-embedding-final.md`).

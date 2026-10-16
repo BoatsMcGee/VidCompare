@@ -53,7 +53,7 @@ row itself.
 ## Layout skeleton (full window)
 
 ```
-header:  VidCompare [binary badge] [theme ◐] [Compare ▾] [settings ⚙]
+header:  [←] VidCompare [binary badge] [theme ◐] [Compare ▾] [settings ⚙]
 body:    file panels:  L Left  ⇄  R Right   (equal widths, 50/50 grid)
          options section (contiguous block):
                    presets bar (presets act on the options below it)
@@ -66,8 +66,8 @@ body:    file panels:  L Left  ⇄  R Right   (equal widths, 50/50 grid)
 footer:  status bar
 
 compare page (replaces body when Compare is pressed):
-         slim bar: [← Back] Compare            [embedded]
          embed surface (fills the window; overlay-embedded video-compare)
+         (no chrome of its own; the header's ← returns to setup)
 ```
 
 Rules:
@@ -152,16 +152,19 @@ The **Compare** page is a dedicated full-window view — entered via the
 header **Compare** split button — so comparing videos is free of setup UI.
 It embeds the *real* video-compare window rather than recreating its UX:
 
-- A single **embed surface** fills the window under a slim bar (Back button
-  + status). Entering the page auto-starts the embed: on Windows,
-  `embed_launch` spawns video-compare, captures its top-level window,
-  strips the frame, and reparents it as an owned popup over the surface;
-  the surface geometry is forwarded to `embed_set_rect` from a
-  requestAnimationFrame loop **and** from capture-phase `scroll`/`resize`
-  listeners, so the captured window tracks layout changes without lagging
-  behind a scroll. The backend clips the captured window to the visible
-  slice of the surface, so scrolling never lets it overflow past the app
-  window.
+- The page is **chrome-free**: a single **embed surface** fills the window.
+  There is no banner, heading, or status of its own — the app header carries
+  the back button (left of the logo) and hides the Compare button while this
+  view is active, since the user is already comparing. The page exists only
+  to isolate the embedded surface.
+- Entering the page auto-starts the embed: on Windows, `embed_launch` spawns
+  video-compare, captures its top-level window, strips the frame, and
+  reparents it as an owned popup over the surface; the surface geometry is
+  forwarded to `embed_set_rect` from a requestAnimationFrame loop **and**
+  from capture-phase `scroll`/`resize` listeners, so the captured window
+  tracks layout changes without lagging behind a scroll. The backend clips
+  the captured window to the visible slice of the surface, so scrolling
+  never lets it overflow past the app window.
 - Because the child keeps its own process, renderer, and keyboard handling,
   **every video-compare feature and shortcut works unchanged** — the app
   never re-implements or vendors upstream behavior.
@@ -169,8 +172,9 @@ It embeds the *real* video-compare window rather than recreating its UX:
   **Back** (or Esc) releases the embed and returns early.
 - **"Launch in separate window"** (the split-button dropdown item) is the
   explicit backup path: the child runs in its own window.
-- When capture fails the surface shows the reason with a Back button —
-  never a broken state; the external Launch path remains available.
+- When capture fails the page **returns to setup** and kills the child it
+  just started — an empty Compare page has nothing to show, and the external
+  Launch path lives on the main page.
 - Comparison modes (wipe/difference/blend/SSIM) belong to video-compare
   itself and are **not** app features — they will never appear in the Option
   Profile system.
