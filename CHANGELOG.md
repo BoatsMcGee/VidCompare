@@ -6,13 +6,7 @@ All notable changes to VidCompare are documented here. The format follows
 
 ## [Unreleased]
 
-### Changed
-
-- **Compare page is now chrome-free.** The banner with the Back button, the
-  "Compare" heading and the "embedded" status are gone — the page is only the
-  embed surface. The back button moved to the app header, left of the logo,
-  and the Compare button is hidden while on the Compare page (you are already
-  there).
+## [0.1.2] - 2026-10-15
 
 ### Fixed
 
@@ -28,6 +22,19 @@ All notable changes to VidCompare are documented here. The format follows
   user on an empty Compare page. The page only exists to isolate the embedded
   surface, so when capture fails the child is killed and the user lands back
   where the "Launch in separate window" fallback lives.
+- **Back button now matches the other header buttons** and the logo stays
+  left-aligned. The back button had been a bare arrow glyph with bespoke
+  styling; it is now word-labelled (`← Back`) and inherits the standard
+  button appearance. It also sits in a header group with the title, so
+  `justify-content: space-between` no longer centres the logo.
+
+### Changed
+
+- **Compare page is now chrome-free.** The banner with the Back button, the
+  "Compare" heading and the "embedded" status are gone — the page is only the
+  embed surface. The back button moved to the app header, left of the logo,
+  and the Compare button is hidden while on the Compare page (you are already
+  there).
 
 ## [0.1.1] - 2026-10-15
 

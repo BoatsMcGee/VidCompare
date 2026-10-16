@@ -13,6 +13,18 @@
 
   const releases: Release[] = [
     {
+      version: '0.1.2',
+      date: '2026-10-15',
+      summary:
+        'Patch release: no more terminal windows, and a cleaner Compare page.',
+      changes: [
+        { type: 'fixed', text: 'No terminal window opens any more — when the app launches, when both files are selected, or when Compare starts. video-compare is a console-subsystem binary, so Windows allocated a new console for every spawn; processes are now created without a console.' },
+        { type: 'fixed', text: 'If embedding fails, the app returns to the main page instead of leaving you on an empty Compare page, and cleans up the process it started.' },
+        { type: 'fixed', text: 'The back button is word-labelled like the other header buttons, and the logo stays left-aligned in the header.' },
+        { type: 'changed', text: 'The Compare page is chrome-free: the banner, “Compare” heading and “embedded” status are gone, leaving only the embed surface. The back button now lives in the app header, left of the logo.' }
+      ]
+    },
+    {
       version: '0.1.1',
       date: '2026-10-15',
       summary:
