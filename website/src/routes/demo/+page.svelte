@@ -22,20 +22,21 @@
 
 <div class="app container">
   <header>
-    {#if demo.view === 'compare'}
-      <button
-        class="back-btn"
-        onclick={() => (demo.view = 'setup')}
-        title="← Back"
-        aria-label="← Back"
-      >
-        ←
-      </button>
-    {/if}
-    <h1 class="app-title">
-      <Logo class="app-logo" size={22} />
-      VidCompare
-    </h1>
+    <div class="header-left">
+      {#if demo.view === 'compare'}
+        <button
+          class="back-btn"
+          onclick={() => (demo.view = 'setup')}
+          data-testid="compare-back"
+        >
+          ← Back
+        </button>
+      {/if}
+      <h1 class="app-title">
+        <Logo class="app-logo" size={22} />
+        VidCompare
+      </h1>
+    </div>
     <div class="header-actions">
       <span class="badge badge-neutral">bundled · 20261004</span>
       <ThemeToggle />
@@ -94,31 +95,17 @@
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
   }
+  .header-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
   header h1 {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     font-size: 16px;
     font-weight: 600;
-  }
-  .back-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    margin-right: 4px;
-    font-size: 15px;
-    line-height: 1;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg);
-    color: var(--fg);
-    cursor: pointer;
-  }
-  .back-btn:hover {
-    background: var(--bg-secondary);
   }
   /* .app-logo lives on the Logo child component's svg, so the selector must
      stay fully global for Svelte not to prune it as unused. */
