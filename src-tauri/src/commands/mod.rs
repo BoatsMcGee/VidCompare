@@ -9,5 +9,6 @@ pub mod files;
 #[cfg(windows)]
 pub mod job;
 pub mod launch;
+pub mod process;
 pub mod profiles;
 pub mod settings;

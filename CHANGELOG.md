@@ -6,6 +6,17 @@ All notable changes to VidCompare are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A terminal window no longer opens when the app launches, when both files
+  are selected, or when Compare starts.** video-compare is a
+  console-subsystem binary while VidCompare is a GUI app, so Windows
+  allocated a fresh console for every spawn — flashing a terminal that could
+  steal focus, and in the Compare case staying open above the app. All
+  process spawns now pass `CREATE_NO_WINDOW`, so the sidecar runs with no
+  console at all (its output is captured through pipes and its SDL window is
+  a normal GUI window).
+
 ## [0.1.1] - 2026-10-15
 
 ### Fixed

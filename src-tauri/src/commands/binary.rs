@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::process::Command;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BinaryInfo {
@@ -30,15 +29,8 @@ pub async fn warm_sidecar(binary: String) -> Result<(), String> {
 
     tauri::async_runtime::spawn_blocking(move || {
         let started = std::time::Instant::now();
-        let mut child = match Command::new(&path)
-            .arg("--version")
-            // Discard output: piping without reading could block the child
-            // once the pipe buffer fills.
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .stdin(std::process::Stdio::null())
-            .spawn()
-        {
+        let binary = path.to_string_lossy().to_string();
+        let mut child = match super::process::spawn_hidden(&binary, &["--version".to_string()]) {
             Ok(c) => c,
             Err(e) => {
                 log::debug!("warm_sidecar: could not start {}: {e}", path.display());
@@ -111,10 +103,9 @@ pub async fn resolve_binary(custom_path: Option<String>) -> Result<BinaryInfo, S
     })
 }
 
-fn get_version(path: &PathBuf) -> Result<String, String> {
-    let output = Command::new(path)
-        .arg("--version")
-        .output()
+fn get_version(path: &Path) -> Result<String, String> {
+    let binary = path.to_string_lossy().to_string();
+    let output = super::process::output_hidden(&binary, &["--version".to_string()])
         .map_err(|e| format!("Failed to run --version: {}", e))?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -139,13 +130,12 @@ pub async fn run_info_command(kind: String, term: String) -> Result<String, Stri
         _ => return Err(format!("Unknown kind: {}", kind)),
     };
 
-    let binary =
-        which::which("video-compare").map_err(|_| "video-compare not found in PATH".to_string())?;
+    let binary = which::which("video-compare")
+        .map_err(|_| "video-compare not found in PATH".to_string())?
+        .to_string_lossy()
+        .to_string();
 
-    let output = Command::new(binary)
-        .arg(flag)
-        .arg(&term)
-        .output()
+    let output = super::process::output_hidden(&binary, &[flag.to_string(), term])
         .map_err(|e| e.to_string())?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);

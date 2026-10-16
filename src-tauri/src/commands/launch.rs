@@ -50,11 +50,7 @@ pub fn spawn_managed(
         .map(|d| d.as_secs())
         .unwrap_or(0);
 
-    let mut child = std::process::Command::new(binary)
-        .args(args)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
+    let mut child = super::process::spawn_hidden(binary, args)
         .map_err(|e| format!("Failed to launch: {}", e))?;
 
     let pid = child.id();
