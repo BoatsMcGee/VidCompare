@@ -67,7 +67,7 @@ jobs:
           echo "SidecarLibFingerprint=${fp:-unknown}" >> "$GITHUB_ENV"
 
       - name: Cache sidecar
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: src-tauri/binaries
           key: sidecar-${{ matrix.platform }}-${{ env.ImageRunnerVersion }}-${{ env.SidecarLibFingerprint }}-${{ hashFiles('sidecar-version.json') }}
