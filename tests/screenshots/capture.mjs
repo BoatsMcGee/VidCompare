@@ -197,6 +197,18 @@ const MOCK_VALUES = {
   ],
   run_info_command: 'Available filters:\n  yadif\n  scale\n  crop\n  hstack\n  vstack\n  ...',
   describe_path: { is_dir: false },
+  // Real success shape from embed_launch. The app returns to setup when a
+  // capture fails, so a successful result is required for the Compare page
+  // to stay mounted (the surface content is then replaced with a fixture
+  // image by the open-compare setup).
+  embed_launch: {
+    id: 'screenshot-embed',
+    started_at: 0,
+    pid: 4242,
+    embedded: true,
+    reason: null,
+    aspect: 16 / 9,
+  },
   app_info: { version: '0.1.0', portable: false, os: 'linux', arch: 'x86_64' },
   list_profiles: [],
   fetch_profiles_index: { profiles: [] },
@@ -206,10 +218,7 @@ const MOCK_VALUES = {
 // is `undefined` (void commands) are listed explicitly.
 const VOID_MOCKS = [
   'save_settings',
-  // Compare page: pretend an embedded video-compare window launched so the
-  // embed surface renders; the surface content is replaced with a fixture
-  // image by the open-compare setup.
-  'embed_launch',
+  'warm_sidecar',
   'embed_set_rect',
   'embed_release',
   'kill',
