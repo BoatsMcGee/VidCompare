@@ -30,7 +30,7 @@ tauri-plugin-updater = "2"
 tauri-plugin-wdio = "1"
 uuid = { version = "1", features = ["v4"] }
 which = "8"
-dirs = "6"
+dirs = "7"
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
   "Win32_Foundation",
